@@ -6,7 +6,7 @@ OXQF is the reference implementation workspace for the OXQ single-game format. T
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 
-The current source tree is an engineering skeleton. Format and implementation design documents are maintained under `.codex` during development.
+The current source tree is an engineering skeleton. The frozen OXQ v1.0 RC1 specification is published at [spec/oxq-v1.md](spec/oxq-v1.md); implementation design documents are maintained under `.codex` during development.
 
 ## Development prerequisites
 
@@ -37,9 +37,9 @@ ctest --preset dev
 To validate the sanitizer build:
 
 ```bash
-cmake --preset sanitize
-cmake --build --preset sanitize
-ctest --preset sanitize
+cmake --preset clang-sanitize
+cmake --build --preset clang-sanitize
+ctest --preset clang-sanitize
 ```
 
 Run the complete WSL quality gate, including GCC and Clang builds, with:

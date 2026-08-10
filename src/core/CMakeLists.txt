@@ -4,11 +4,16 @@ add_library(OXQF::core ALIAS oxq_core)
 target_sources(
   oxq_core
   PRIVATE
+    src/game_model.cpp
     src/product.cpp
+    src/validation.cpp
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
-    FILES include/oxq/core/product.hpp
+    FILES
+      include/oxq/core/game_model.hpp
+      include/oxq/core/product.hpp
+      include/oxq/core/validation.hpp
 )
 
 target_compile_features(oxq_core PUBLIC cxx_std_20)

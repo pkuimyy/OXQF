@@ -4,6 +4,12 @@ oxqf_set_project_warnings(oxq_core_header_smoke)
 oxqf_enable_sanitizers(oxq_core_header_smoke)
 add_test(NAME core.header-smoke COMMAND oxq_core_header_smoke)
 
+add_executable(oxq_core_game_model_test core/game_model_test.cpp)
+target_link_libraries(oxq_core_game_model_test PRIVATE OXQF::core)
+oxqf_set_project_warnings(oxq_core_game_model_test)
+oxqf_enable_sanitizers(oxq_core_game_model_test)
+add_test(NAME core.game-model COMMAND oxq_core_game_model_test)
+
 add_executable(oxq_convert_header_smoke convert/header_smoke.cpp)
 target_link_libraries(oxq_convert_header_smoke PRIVATE OXQF::convert)
 oxqf_set_project_warnings(oxq_convert_header_smoke)
@@ -16,6 +22,7 @@ set_tests_properties(cli.version PROPERTIES PASS_REGULAR_EXPRESSION "^oxq ${PROJ
 if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
   set_tests_properties(
     core.header-smoke
+    core.game-model
     convert.header-smoke
     cli.version
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
