@@ -1,0 +1,15 @@
+{
+  "name": "open-xiangqi-format-dev",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Development scripts for the Open Xiangqi Format project",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "check": "node script/check-environment.mjs",
+    "ci": "node script/ci.mjs",
+    "test": "node --test script/test/*.test.mjs"
+  }
+}

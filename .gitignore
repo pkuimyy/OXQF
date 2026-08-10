@@ -1,0 +1,6 @@
+raw/
+.codex/
+build/
+out/
+node_modules/
+CMakeUserPresets.json
