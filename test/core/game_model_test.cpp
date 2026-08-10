@@ -27,6 +27,8 @@ using oxq::core::ValidationCode;
   GameModel game;
   game.uuid = *oxq::core::Uuid::parse("01980000-0000-7000-8000-000000000010");
   game.metadata.title = "";  // Present-but-empty is distinct from std::nullopt.
+  game.metadata.event.start_time = "2024-02-29";
+  game.metadata.event.date_precision = oxq::core::DatePrecision::day;
   game.metadata.tags = {"研究", "待复核"};
   game.metadata.extensions["org.openxiangqi.cbl"]["display_index"] = std::string{"12"};
   game.metadata.extensions["com.example.application"]["collection"] =
@@ -73,18 +75,32 @@ int main() {
 
   GameModel invalid = game;
   invalid.uuid = {};
-  invalid.initial_position.pieces.push_back(Piece{Side::red, PieceType::rook, 4});
+  invalid.initial_position.side_to_move = static_cast<Side>(2);
+  invalid.initial_position.pieces.push_back(
+      Piece{Side::red, static_cast<PieceType>(0), 4});
   invalid.move_tree.nodes[1].parent = 2;
+  invalid.move_tree.nodes[2].move = Move{5, 5};
+  invalid.move_tree.nodes[1].annotations.push_back({});
+  invalid.move_tree.nodes[1].annotations.back().kind =
+      static_cast<oxq::core::AnnotationKind>(255);
+  invalid.metadata.result = static_cast<oxq::core::GameResult>(255);
   invalid.metadata.extensions["Invalid Namespace"]["Bad-Key"] = std::vector<std::string>{};
   invalid.metadata.tags.push_back(std::string{"\xc0\x80", 2});
+  invalid.metadata.event.start_time = "2023-02-29";
   const auto issues = oxq::core::validate(invalid);
   if (!has_code(issues, ValidationCode::nil_uuid) ||
+      !has_code(issues, ValidationCode::invalid_side) ||
+      !has_code(issues, ValidationCode::invalid_piece_type) ||
       !has_code(issues, ValidationCode::duplicate_square) ||
       !has_code(issues, ValidationCode::invalid_parent) ||
+      !has_code(issues, ValidationCode::same_square_move) ||
+      !has_code(issues, ValidationCode::invalid_annotation_kind) ||
+      !has_code(issues, ValidationCode::invalid_game_result) ||
       !has_code(issues, ValidationCode::invalid_extension_namespace) ||
       !has_code(issues, ValidationCode::invalid_extension_key) ||
       !has_code(issues, ValidationCode::empty_extension_array) ||
-      !has_code(issues, ValidationCode::invalid_utf8)) {
+      !has_code(issues, ValidationCode::invalid_utf8) ||
+      !has_code(issues, ValidationCode::invalid_date_time)) {
     return 4;
   }
 
@@ -92,6 +108,37 @@ int main() {
   invalid_variant.uuid.bytes[8] = 0;
   if (!has_code(oxq::core::validate(invalid_variant), ValidationCode::invalid_uuid_variant)) {
     return 5;
+  }
+
+  GameModel missing_precision = game;
+  missing_precision.metadata.event.date_precision.reset();
+  missing_precision.metadata.tags.push_back("研究");
+  const auto metadata_issues = oxq::core::validate(missing_precision);
+  if (!has_code(metadata_issues, ValidationCode::missing_date_precision) ||
+      !has_code(metadata_issues, ValidationCode::duplicate_tag)) {
+    return 6;
+  }
+
+  GameModel invalid_precision = game;
+  invalid_precision.metadata.event.date_precision =
+      static_cast<oxq::core::DatePrecision>(255);
+  if (!has_code(oxq::core::validate(invalid_precision), ValidationCode::invalid_date_precision)) {
+    return 7;
+  }
+
+  GameModel cyclic = valid_game();
+  cyclic.move_tree.nodes[1].children = {0};
+  if (!has_code(oxq::core::validate(cyclic), ValidationCode::tree_cycle)) {
+    return 8;
+  }
+
+  GameModel unreachable = valid_game();
+  MoveNode detached;
+  detached.parent = 0;
+  detached.move = Move{1, 2};
+  unreachable.move_tree.nodes.push_back(std::move(detached));
+  if (!has_code(oxq::core::validate(unreachable), ValidationCode::unreachable_node)) {
+    return 9;
   }
 
   GameModel deep = valid_game();
@@ -109,7 +156,7 @@ int main() {
   limits.max_tree_depth = depth - 1;
   const auto deep_issues = oxq::core::validate(deep, limits);
   if (!has_code(deep_issues, ValidationCode::tree_too_deep)) {
-    return 6;
+    return 10;
   }
 
   return 0;

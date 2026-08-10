@@ -4,6 +4,8 @@ add_library(OXQF::core ALIAS oxq_core)
 target_sources(
   oxq_core
   PRIVATE
+    src/codec/container.cpp
+    src/codec/crc32c.cpp
     src/game_model.cpp
     src/product.cpp
     src/validation.cpp
@@ -12,11 +14,13 @@ target_sources(
     BASE_DIRS include
     FILES
       include/oxq/core/game_model.hpp
+      include/oxq/core/codec_error.hpp
       include/oxq/core/product.hpp
       include/oxq/core/validation.hpp
 )
 
 target_compile_features(oxq_core PUBLIC cxx_std_20)
+target_include_directories(oxq_core PRIVATE src)
 target_compile_definitions(oxq_core PRIVATE OXQF_PROJECT_VERSION="${PROJECT_VERSION}")
 
 set_target_properties(

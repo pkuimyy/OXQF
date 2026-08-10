@@ -456,7 +456,19 @@ JSON 结构被严格限制为：
 | `4` | UNFINISHED |
 | `5` | ABORTED |
 
-START_TIME 和 END_TIME 必须与 DATE_PRECISION 相符。没有时区信息时不得臆造 `Z` 或本地偏移。
+START_TIME 和 END_TIME 采用 ISO 8601 扩展形式的下列规范子集，并必须与 DATE_PRECISION 相符：
+
+| DATE_PRECISION | 文本形式 |
+| --- | --- |
+| `YEAR` | `YYYY` |
+| `MONTH` | `YYYY-MM` |
+| `DAY` | `YYYY-MM-DD` |
+| `MINUTE` | `YYYY-MM-DDThh:mm`，可带时区 |
+| `SECOND` | `YYYY-MM-DDThh:mm:ss`，可带时区 |
+| `SUBSECOND` | `YYYY-MM-DDThh:mm:ss.fraction`，至少一位小数，可带时区 |
+| `UNKNOWN` | 上述任一合法形式 |
+
+时区若存在，只能是 `Z` 或 `±hh:mm`；日期必须是有效的 Gregorian 日期，时、分、秒分别限于 `00..23`、`00..59`、`00..59`。v1.0 不接受基本形式、空格代替 `T`、逗号小数或闰秒 `60`。存在 START_TIME 或 END_TIME 时必须存在 DATE_PRECISION；两个时间都缺失时必须省略 DATE_PRECISION。没有时区信息时不得臆造 `Z` 或本地偏移。
 
 ### 8.7 规范化顺序
 

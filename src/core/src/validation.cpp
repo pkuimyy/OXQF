@@ -26,6 +26,116 @@ namespace {
          value <= static_cast<std::uint8_t>(PieceType::pawn);
 }
 
+[[nodiscard]] bool valid_annotation_kind(AnnotationKind kind) noexcept {
+  return kind == AnnotationKind::comment || kind == AnnotationKind::source_note;
+}
+
+[[nodiscard]] bool valid_game_result(GameResult result) noexcept {
+  const auto value = static_cast<std::uint8_t>(result);
+  return value <= static_cast<std::uint8_t>(GameResult::aborted);
+}
+
+[[nodiscard]] bool valid_date_precision(DatePrecision precision) noexcept {
+  const auto value = static_cast<std::uint8_t>(precision);
+  return value <= static_cast<std::uint8_t>(DatePrecision::subsecond);
+}
+
+[[nodiscard]] bool ascii_digits(std::string_view text, std::size_t offset,
+                                std::size_t length) noexcept {
+  if (offset > text.size() || length > text.size() - offset) {
+    return false;
+  }
+  for (std::size_t index = offset; index < offset + length; ++index) {
+    if (text[index] < '0' || text[index] > '9') {
+      return false;
+    }
+  }
+  return true;
+}
+
+[[nodiscard]] unsigned decimal(std::string_view text, std::size_t offset,
+                               std::size_t length) noexcept {
+  unsigned value = 0;
+  for (std::size_t index = offset; index < offset + length; ++index) {
+    value = value * 10U + static_cast<unsigned>(text[index] - '0');
+  }
+  return value;
+}
+
+[[nodiscard]] bool leap_year(unsigned year) noexcept {
+  return year % 4U == 0U && (year % 100U != 0U || year % 400U == 0U);
+}
+
+[[nodiscard]] bool valid_calendar_date(std::string_view text) noexcept {
+  if (text.size() < 10 || !ascii_digits(text, 0, 4) || text[4] != '-' ||
+      !ascii_digits(text, 5, 2) || text[7] != '-' || !ascii_digits(text, 8, 2)) {
+    return false;
+  }
+  const unsigned year = decimal(text, 0, 4);
+  const unsigned month = decimal(text, 5, 2);
+  const unsigned day = decimal(text, 8, 2);
+  if (month == 0 || month > 12 || day == 0) {
+    return false;
+  }
+  constexpr std::array<unsigned, 12> days{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  const unsigned limit = month == 2 && leap_year(year) ? 29U : days[month - 1];
+  return day <= limit;
+}
+
+[[nodiscard]] bool valid_zone(std::string_view zone) noexcept {
+  if (zone.empty() || zone == "Z") {
+    return true;
+  }
+  if (zone.size() != 6 || (zone[0] != '+' && zone[0] != '-') || zone[3] != ':' ||
+      !ascii_digits(zone, 1, 2) || !ascii_digits(zone, 4, 2)) {
+    return false;
+  }
+  return decimal(zone, 1, 2) <= 23U && decimal(zone, 4, 2) <= 59U;
+}
+
+[[nodiscard]] std::optional<DatePrecision> date_time_precision(std::string_view text) noexcept {
+  if (text.size() == 4 && ascii_digits(text, 0, 4)) {
+    return DatePrecision::year;
+  }
+  if (text.size() == 7 && ascii_digits(text, 0, 4) && text[4] == '-' &&
+      ascii_digits(text, 5, 2) && decimal(text, 5, 2) >= 1U &&
+      decimal(text, 5, 2) <= 12U) {
+    return DatePrecision::month;
+  }
+  if (!valid_calendar_date(text)) {
+    return std::nullopt;
+  }
+  if (text.size() == 10) {
+    return DatePrecision::day;
+  }
+  if (text.size() < 16 || text[10] != 'T' || !ascii_digits(text, 11, 2) || text[13] != ':' ||
+      !ascii_digits(text, 14, 2) || decimal(text, 11, 2) > 23U ||
+      decimal(text, 14, 2) > 59U) {
+    return std::nullopt;
+  }
+
+  std::size_t cursor = 16;
+  DatePrecision precision = DatePrecision::minute;
+  if (cursor < text.size() && text[cursor] == ':') {
+    if (!ascii_digits(text, cursor + 1, 2) || decimal(text, cursor + 1, 2) > 59U) {
+      return std::nullopt;
+    }
+    cursor += 3;
+    precision = DatePrecision::second;
+    if (cursor < text.size() && text[cursor] == '.') {
+      const std::size_t fraction_start = ++cursor;
+      while (cursor < text.size() && text[cursor] >= '0' && text[cursor] <= '9') {
+        ++cursor;
+      }
+      if (cursor == fraction_start) {
+        return std::nullopt;
+      }
+      precision = DatePrecision::subsecond;
+    }
+  }
+  return valid_zone(text.substr(cursor)) ? std::optional<DatePrecision>{precision} : std::nullopt;
+}
+
 [[nodiscard]] bool continuation(std::uint8_t byte) noexcept {
   return (byte & 0xc0U) == 0x80U;
 }
@@ -125,6 +235,9 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
   const auto report = [&issues](ValidationCode code, std::string path, std::string message) {
     issues.push_back({ValidationSeverity::error, code, std::move(path), std::move(message)});
   };
+  const auto warn = [&issues](ValidationCode code, std::string path, std::string message) {
+    issues.push_back({ValidationSeverity::warning, code, std::move(path), std::move(message)});
+  };
 
   if (game.uuid.is_nil()) {
     report(ValidationCode::nil_uuid, "uuid", "game UUID must not be nil");
@@ -193,6 +306,9 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
       if (node.move.has_value() &&
           (node.move->from_square >= 90 || node.move->to_square >= 90)) {
         report(ValidationCode::invalid_move, path + ".move", "move squares must be in 0..89");
+      } else if (node.move.has_value() && node.move->from_square == node.move->to_square) {
+        report(ValidationCode::same_square_move, path + ".move",
+               "move origin and destination must differ");
       }
 
       std::vector<std::size_t> local_children;
@@ -353,9 +469,55 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
       const auto& annotation = nodes[node_index].annotations[index];
       const std::string path = "move_tree.nodes[" + std::to_string(node_index) + "].annotations[" +
                                std::to_string(index) + "]";
+      if (!valid_annotation_kind(annotation.kind)) {
+        report(ValidationCode::invalid_annotation_kind, path + ".kind",
+               "annotation kind is outside the model domain");
+      }
       validate_text(annotation.text, path + ".text");
       validate_optional(annotation.author, path + ".author");
       validate_optional(annotation.language, path + ".language");
+    }
+  }
+
+  if (game.metadata.result.has_value() && !valid_game_result(*game.metadata.result)) {
+    report(ValidationCode::invalid_game_result, "metadata.result",
+           "game result is outside the model domain");
+  }
+
+  const bool has_date = event.start_time.has_value() || event.end_time.has_value();
+  if (has_date && !event.date_precision.has_value()) {
+    report(ValidationCode::missing_date_precision, "metadata.event.date_precision",
+           "date precision is required when a start or end time is present");
+  } else if (!has_date && event.date_precision.has_value()) {
+    report(ValidationCode::invalid_date_precision, "metadata.event.date_precision",
+           "date precision must be absent when both date fields are absent");
+  } else if (event.date_precision.has_value() && !valid_date_precision(*event.date_precision)) {
+    report(ValidationCode::invalid_date_precision, "metadata.event.date_precision",
+           "date precision is outside the model domain");
+  } else if (event.date_precision.has_value()) {
+    const auto validate_date = [&report, &event](const std::optional<std::string>& value,
+                                                 std::string path) {
+      if (!value.has_value()) {
+        return;
+      }
+      const auto actual = date_time_precision(*value);
+      if (!actual.has_value() ||
+          (*event.date_precision != DatePrecision::unknown && *actual != *event.date_precision)) {
+        report(ValidationCode::invalid_date_time, std::move(path),
+               "date/time is invalid or does not match date_precision");
+      }
+    };
+    validate_date(event.start_time, "metadata.event.start_time");
+    validate_date(event.end_time, "metadata.event.end_time");
+  }
+
+  for (std::size_t index = 0; index < game.metadata.tags.size(); ++index) {
+    if (std::ranges::find(game.metadata.tags.begin(), game.metadata.tags.begin() +
+                                                           static_cast<std::ptrdiff_t>(index),
+                          game.metadata.tags[index]) !=
+        game.metadata.tags.begin() + static_cast<std::ptrdiff_t>(index)) {
+      warn(ValidationCode::duplicate_tag, "metadata.tags[" + std::to_string(index) + "]",
+           "duplicate tags are removed by canonical serialization");
     }
   }
 
