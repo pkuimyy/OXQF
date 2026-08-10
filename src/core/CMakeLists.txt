@@ -6,8 +6,10 @@ target_sources(
   PRIVATE
     src/codec/container.cpp
     src/codec/crc32c.cpp
+    src/codec/string_pool.cpp
     src/game_model.cpp
     src/product.cpp
+    src/utf8.cpp
     src/validation.cpp
   PUBLIC
     FILE_SET HEADERS

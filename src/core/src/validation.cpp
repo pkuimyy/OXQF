@@ -1,5 +1,7 @@
 #include <oxq/core/validation.hpp>
 
+#include "utf8.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -134,63 +136,6 @@ namespace {
     }
   }
   return valid_zone(text.substr(cursor)) ? std::optional<DatePrecision>{precision} : std::nullopt;
-}
-
-[[nodiscard]] bool continuation(std::uint8_t byte) noexcept {
-  return (byte & 0xc0U) == 0x80U;
-}
-
-[[nodiscard]] bool valid_utf8(std::string_view text) noexcept {
-  const auto* bytes = reinterpret_cast<const unsigned char*>(text.data());
-  std::size_t index = 0;
-  while (index < text.size()) {
-    const auto first = static_cast<std::uint8_t>(bytes[index]);
-    if (first <= 0x7fU) {
-      ++index;
-      continue;
-    }
-    if (first >= 0xc2U && first <= 0xdfU) {
-      if (index + 1 >= text.size() || !continuation(bytes[index + 1])) {
-        return false;
-      }
-      index += 2;
-      continue;
-    }
-    if (first >= 0xe0U && first <= 0xefU) {
-      if (index + 2 >= text.size() || !continuation(bytes[index + 2])) {
-        return false;
-      }
-      const auto second = static_cast<std::uint8_t>(bytes[index + 1]);
-      const bool valid_second =
-          (first == 0xe0U && second >= 0xa0U && second <= 0xbfU) ||
-          (first == 0xedU && second >= 0x80U && second <= 0x9fU) ||
-          (((first >= 0xe1U && first <= 0xecU) || (first >= 0xeeU && first <= 0xefU)) &&
-           continuation(second));
-      if (!valid_second) {
-        return false;
-      }
-      index += 3;
-      continue;
-    }
-    if (first >= 0xf0U && first <= 0xf4U) {
-      if (index + 3 >= text.size() || !continuation(bytes[index + 2]) ||
-          !continuation(bytes[index + 3])) {
-        return false;
-      }
-      const auto second = static_cast<std::uint8_t>(bytes[index + 1]);
-      const bool valid_second =
-          (first == 0xf0U && second >= 0x90U && second <= 0xbfU) ||
-          (first >= 0xf1U && first <= 0xf3U && continuation(second)) ||
-          (first == 0xf4U && second >= 0x80U && second <= 0x8fU);
-      if (!valid_second) {
-        return false;
-      }
-      index += 4;
-      continue;
-    }
-    return false;
-  }
-  return true;
 }
 
 [[nodiscard]] bool valid_namespace(std::string_view value) noexcept {
@@ -402,7 +347,7 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
   const auto validate_text = [&report, &limits](std::string_view text, std::string path) {
     if (text.size() > limits.max_string_bytes) {
       report(ValidationCode::string_too_long, path, "UTF-8 string byte limit exceeded");
-    } else if (!valid_utf8(text)) {
+    } else if (!detail::valid_utf8(text)) {
       report(ValidationCode::invalid_utf8, path, "text is not valid shortest-form UTF-8");
     }
   };
