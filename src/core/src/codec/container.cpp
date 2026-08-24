@@ -150,6 +150,9 @@ ContainerResult inspect_container(std::span<const std::byte> input, const Contai
                    "Section type is zero or duplicated", {}, {}, type);
     }
     const bool standard = type >= 1 && type <= 5;
+    if (!standard) {
+      ++result.unknown_section_count;
+    }
     if ((flags & ~3U) != 0 || (standard && flags != 1U)) {
       return error(CodecErrorCode::invalid_section_table, entry + 4, "section_flags",
                    "Section flags are invalid for v1.0", {}, flags, type);
@@ -171,6 +174,10 @@ ContainerResult inspect_container(std::span<const std::byte> input, const Contai
         !to_size(read_u64(input, entry + 24), logical_size)) {
       return error(CodecErrorCode::integer_overflow, entry + 8, "section_range",
                    "Section range does not fit the host size type", {}, {}, type);
+    }
+    if (!result.sections.empty() &&
+        (type < result.sections.back().type || offset < result.sections.back().offset)) {
+      result.canonical_order = false;
     }
     if (stored_size != logical_size) {
       return error(CodecErrorCode::invalid_section_table, entry + 24, "logical_size",

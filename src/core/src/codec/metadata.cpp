@@ -2,6 +2,7 @@
 
 #include "codec/binary.hpp"
 #include "codec/restricted_json.hpp"
+#include "date_time.hpp"
 
 #include <algorithm>
 #include <array>
@@ -278,6 +279,9 @@ MetadataResult read_metadata(std::span<const std::byte> input, const ContainerVi
 DecodedMetadataResult decode_metadata(const MetadataView& metadata,
                                       std::size_t max_extended_metadata_bytes) {
   DecodedMetadata result;
+  const MetadataFieldView* start_time_field = nullptr;
+  const MetadataFieldView* end_time_field = nullptr;
+  const MetadataFieldView* date_precision_field = nullptr;
   const auto text = [](const MetadataFieldView& field) {
     return std::string{*field.string_value};
   };
@@ -310,10 +314,17 @@ DecodedMetadataResult decode_metadata(const MetadataView& metadata,
       case 0x0016: result.value.event.group = text(field); break;
       case 0x0017: result.value.event.board_number = text(field); break;
       case 0x0018: result.value.event.time_control = text(field); break;
-      case 0x0020: result.value.event.start_time = text(field); break;
-      case 0x0021: result.value.event.end_time = text(field); break;
+      case 0x0020:
+        result.value.event.start_time = text(field);
+        start_time_field = &field;
+        break;
+      case 0x0021:
+        result.value.event.end_time = text(field);
+        end_time_field = &field;
+        break;
       case 0x0022:
         result.value.event.date_precision = static_cast<DatePrecision>(read_u32(field.raw_value, 0));
+        date_precision_field = &field;
         break;
       case 0x0030:
         result.value.result = static_cast<GameResult>(read_u32(field.raw_value, 0));
@@ -361,6 +372,41 @@ DecodedMetadataResult decode_metadata(const MetadataView& metadata,
                        "standard Metadata tag has no GameMetadata projection", {}, field.tag);
         }
         break;
+    }
+  }
+
+  const bool has_date = start_time_field != nullptr || end_time_field != nullptr;
+  if (has_date && date_precision_field == nullptr) {
+    const auto* field = start_time_field != nullptr ? start_time_field : end_time_field;
+    return error(CodecErrorCode::invalid_metadata, field->value_offset, "DATE_PRECISION",
+                 "DATE_PRECISION is required when START_TIME or END_TIME is present");
+  }
+  if (!has_date && date_precision_field != nullptr) {
+    return error(CodecErrorCode::invalid_metadata, date_precision_field->value_offset,
+                 "DATE_PRECISION",
+                 "DATE_PRECISION must be absent when both date fields are absent");
+  }
+  if (date_precision_field != nullptr) {
+    const auto expected = *result.value.event.date_precision;
+    const auto validate_date = [&](const MetadataFieldView* field) -> std::optional<CodecError> {
+      if (field == nullptr) {
+        return std::nullopt;
+      }
+      const auto actual = date_time_precision(*field->string_value);
+      if (!actual.has_value() ||
+          (expected != DatePrecision::unknown && *actual != expected)) {
+        return error(CodecErrorCode::invalid_metadata,
+                     field->string_data_offset.value_or(field->value_offset),
+                     field->tag == 0x0020 ? "START_TIME" : "END_TIME",
+                     "date/time is invalid or does not match DATE_PRECISION");
+      }
+      return std::nullopt;
+    };
+    if (const auto invalid = validate_date(start_time_field); invalid.has_value()) {
+      return *invalid;
+    }
+    if (const auto invalid = validate_date(end_time_field); invalid.has_value()) {
+      return *invalid;
     }
   }
   return result;

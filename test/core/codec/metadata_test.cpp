@@ -219,5 +219,32 @@ int main() {
       std::get<oxq::core::CodecError>(invalid_projection).offset < 400) {
     return 20;
   }
+
+  const std::array<std::byte, 4> day_precision{
+      std::byte{3}, std::byte{0}, std::byte{0}, std::byte{0}};
+  oxq::core::detail::MetadataView dated;
+  dated.fields.push_back(
+      {0x0020, 5, 0, {}, std::string_view{"2024-02-29"}, 500, 600, true});
+  dated.fields.push_back(
+      {0x0022, 1, 0, day_precision, std::nullopt, 504, std::nullopt, true});
+  const auto valid_date = oxq::core::detail::decode_metadata(dated);
+  if (!std::holds_alternative<oxq::core::detail::DecodedMetadata>(valid_date) ||
+      std::get<oxq::core::detail::DecodedMetadata>(valid_date).value.event.start_time !=
+          "2024-02-29") {
+    return 21;
+  }
+  dated.fields[0].string_value = "2023-02-29";
+  const auto invalid_date = oxq::core::detail::decode_metadata(dated);
+  if (!std::holds_alternative<oxq::core::CodecError>(invalid_date) ||
+      std::get<oxq::core::CodecError>(invalid_date).code !=
+          oxq::core::CodecErrorCode::invalid_metadata ||
+      std::get<oxq::core::CodecError>(invalid_date).offset != 600) {
+    return 22;
+  }
+  dated.fields.erase(dated.fields.begin());
+  if (!std::holds_alternative<oxq::core::CodecError>(
+          oxq::core::detail::decode_metadata(dated))) {
+    return 23;
+  }
   return 0;
 }

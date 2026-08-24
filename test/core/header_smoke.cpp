@@ -1,8 +1,16 @@
 #include <oxq/core/product.hpp>
+#include <oxq/core/reader.hpp>
+#include <oxq/core/validator.hpp>
 
 #include <string_view>
+#include <variant>
 
 int main() {
+  const oxq::core::ReaderLimits limits;
+  const oxq::core::ValidatorOutcome validator{oxq::core::ReaderDiagnostics{}};
+  if (limits.max_nodes == 0 || !std::holds_alternative<oxq::core::ReaderDiagnostics>(validator)) {
+    return 1;
+  }
   if (oxq::core::product_name() != std::string_view{"oxq-core"}) {
     return 1;
   }

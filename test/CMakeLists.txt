@@ -104,6 +104,26 @@ oxqf_set_project_warnings(oxq_core_codec_move_tree_test)
 oxqf_enable_sanitizers(oxq_core_codec_move_tree_test)
 add_test(NAME core.codec-move-tree COMMAND oxq_core_codec_move_tree_test)
 
+add_executable(oxq_core_reader_test core/reader_test.cpp)
+target_link_libraries(oxq_core_reader_test PRIVATE OXQF::core)
+target_compile_definitions(
+  oxq_core_reader_test
+  PRIVATE OXQF_VECTOR_DIRECTORY="${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1"
+)
+oxqf_set_project_warnings(oxq_core_reader_test)
+oxqf_enable_sanitizers(oxq_core_reader_test)
+add_test(NAME core.reader COMMAND oxq_core_reader_test)
+
+add_executable(oxq_core_validator_test core/validator_test.cpp)
+target_link_libraries(oxq_core_validator_test PRIVATE OXQF::core)
+target_compile_definitions(
+  oxq_core_validator_test
+  PRIVATE OXQF_VECTOR_DIRECTORY="${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1"
+)
+oxqf_set_project_warnings(oxq_core_validator_test)
+oxqf_enable_sanitizers(oxq_core_validator_test)
+add_test(NAME core.validator COMMAND oxq_core_validator_test)
+
 add_executable(oxq_convert_header_smoke convert/header_smoke.cpp)
 target_link_libraries(oxq_convert_header_smoke PRIVATE OXQF::convert)
 oxqf_set_project_warnings(oxq_convert_header_smoke)
@@ -124,6 +144,8 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     core.codec-position
     core.codec-annotation
     core.codec-move-tree
+    core.reader
+    core.validator
     convert.header-smoke
     cli.version
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"

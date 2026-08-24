@@ -12,11 +12,14 @@ target_sources(
     src/codec/position.cpp
     src/codec/restricted_json.cpp
     src/codec/string_pool.cpp
+    src/date_time.cpp
     src/extension_name.cpp
     src/game_model.cpp
     src/product.cpp
+    src/reader.cpp
     src/utf8.cpp
     src/validation.cpp
+    src/validator.cpp
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
@@ -24,7 +27,9 @@ target_sources(
       include/oxq/core/game_model.hpp
       include/oxq/core/codec_error.hpp
       include/oxq/core/product.hpp
+      include/oxq/core/reader.hpp
       include/oxq/core/validation.hpp
+      include/oxq/core/validator.hpp
 )
 
 target_compile_features(oxq_core PUBLIC cxx_std_20)

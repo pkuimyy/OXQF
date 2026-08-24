@@ -27,6 +27,8 @@ struct SectionView {
 struct ContainerView {
   std::array<std::uint8_t, 16> uuid{};
   std::vector<SectionView> sections;
+  bool canonical_order{true};
+  std::size_t unknown_section_count{};
 };
 
 using ContainerResult = std::variant<ContainerView, CodecError>;
