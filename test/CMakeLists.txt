@@ -62,6 +62,20 @@ oxqf_set_project_warnings(oxq_core_codec_restricted_json_test)
 oxqf_enable_sanitizers(oxq_core_codec_restricted_json_test)
 add_test(NAME core.codec-restricted-json COMMAND oxq_core_codec_restricted_json_test)
 
+add_executable(oxq_core_codec_position_test core/codec/position_test.cpp)
+target_link_libraries(oxq_core_codec_position_test PRIVATE OXQF::core)
+target_include_directories(
+  oxq_core_codec_position_test
+  PRIVATE "${PROJECT_SOURCE_DIR}/src/core/src"
+)
+target_compile_definitions(
+  oxq_core_codec_position_test
+  PRIVATE OXQF_VECTOR_DIRECTORY="${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1"
+)
+oxqf_set_project_warnings(oxq_core_codec_position_test)
+oxqf_enable_sanitizers(oxq_core_codec_position_test)
+add_test(NAME core.codec-position COMMAND oxq_core_codec_position_test)
+
 add_executable(oxq_convert_header_smoke convert/header_smoke.cpp)
 target_link_libraries(oxq_convert_header_smoke PRIVATE OXQF::convert)
 oxqf_set_project_warnings(oxq_convert_header_smoke)
@@ -79,6 +93,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     core.codec-string-pool
     core.codec-metadata
     core.codec-restricted-json
+    core.codec-position
     convert.header-smoke
     cli.version
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
