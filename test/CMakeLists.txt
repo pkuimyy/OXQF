@@ -168,6 +168,42 @@ oxqf_set_project_warnings(oxq_core_deep_malformed_test)
 oxqf_enable_sanitizers(oxq_core_deep_malformed_test)
 add_test(NAME core.deep-malformed COMMAND oxq_core_deep_malformed_test)
 
+if(OXQF_BUILD_FUZZERS)
+  set(OXQF_READER_FUZZ_CORPUS "${CMAKE_CURRENT_BINARY_DIR}/reader-fuzz-corpus")
+  set(OXQF_READER_FUZZ_ARTIFACTS "${CMAKE_CURRENT_BINARY_DIR}/reader-fuzz-artifacts")
+  file(MAKE_DIRECTORY "${OXQF_READER_FUZZ_CORPUS}" "${OXQF_READER_FUZZ_ARTIFACTS}")
+  file(
+    COPY
+      "${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1/minimal.oxq"
+      "${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1/variation-zh.oxq"
+      "${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1/unknown-noncritical.oxq"
+      "${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1/invalid-magic-high-bit.oxq"
+      "${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1/invalid-magic-crlf.oxq"
+      "${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1/invalid-magic-eof.oxq"
+    DESTINATION "${OXQF_READER_FUZZ_CORPUS}"
+  )
+  add_executable(oxq_core_reader_fuzz fuzz/reader_fuzz.cpp)
+  target_link_libraries(oxq_core_reader_fuzz PRIVATE OXQF::core)
+  target_compile_options(oxq_core_reader_fuzz PRIVATE -fsanitize=fuzzer)
+  target_link_options(oxq_core_reader_fuzz PRIVATE -fsanitize=fuzzer)
+  oxqf_set_project_warnings(oxq_core_reader_fuzz)
+  add_test(
+    NAME core.reader-fuzz-smoke
+    COMMAND
+      oxq_core_reader_fuzz
+      -max_total_time=5
+      -timeout=2
+      "-artifact_prefix=${OXQF_READER_FUZZ_ARTIFACTS}/"
+      "${OXQF_READER_FUZZ_CORPUS}"
+  )
+  set_tests_properties(
+    core.reader-fuzz-smoke
+    PROPERTIES
+      ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
+      TIMEOUT 15
+  )
+endif()
+
 add_executable(oxq_convert_header_smoke convert/header_smoke.cpp)
 target_link_libraries(oxq_convert_header_smoke PRIVATE OXQF::convert)
 oxqf_set_project_warnings(oxq_convert_header_smoke)

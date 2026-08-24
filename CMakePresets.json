@@ -33,6 +33,15 @@
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "/usr/bin/clang++"
       }
+    },
+    {
+      "name": "fuzz",
+      "displayName": "Clang libFuzzer with ASan and UBSan",
+      "inherits": "clang-sanitize",
+      "binaryDir": "${sourceDir}/build/fuzz",
+      "cacheVariables": {
+        "OXQF_BUILD_FUZZERS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -47,6 +56,10 @@
     {
       "name": "clang-sanitize",
       "configurePreset": "clang-sanitize"
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz"
     }
   ],
   "testPresets": [
@@ -67,6 +80,13 @@
     {
       "name": "clang-sanitize",
       "configurePreset": "clang-sanitize",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
       "output": {
         "outputOnFailure": true
       }

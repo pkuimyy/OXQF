@@ -51,6 +51,13 @@ set_target_properties(
 oxqf_set_project_warnings(oxq_core)
 oxqf_enable_sanitizers(oxq_core)
 
+if(OXQF_BUILD_FUZZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "OXQF_BUILD_FUZZERS requires Clang")
+  endif()
+  target_compile_options(oxq_core PRIVATE -fsanitize=fuzzer-no-link)
+endif()
+
 install(
   TARGETS oxq_core
   EXPORT OXQFTargets

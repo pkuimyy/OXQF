@@ -16,6 +16,7 @@ include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
 
 option(OXQF_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(OXQF_BUILD_FUZZERS "Build Clang libFuzzer targets" OFF)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
