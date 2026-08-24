@@ -48,5 +48,12 @@ int main() {
       std::get<oxq::core::CodecError>(invalid).offset != 6) {
     return 3;
   }
+
+  const auto state =
+      oxq::core::validate_oxq_state(read_file(vectors / "variation-zh.oxq"));
+  if (!std::holds_alternative<oxq::core::StateValidatorResult>(state) ||
+      oxq::core::has_errors(std::get<oxq::core::StateValidatorResult>(state).issues)) {
+    return 4;
+  }
   return 0;
 }

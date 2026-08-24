@@ -10,6 +10,16 @@ oxqf_set_project_warnings(oxq_core_game_model_test)
 oxqf_enable_sanitizers(oxq_core_game_model_test)
 add_test(NAME core.game-model COMMAND oxq_core_game_model_test)
 
+add_executable(oxq_core_state_validation_test core/state_validation_test.cpp)
+target_link_libraries(oxq_core_state_validation_test PRIVATE OXQF::core)
+target_compile_definitions(
+  oxq_core_state_validation_test
+  PRIVATE OXQF_VECTOR_DIRECTORY="${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1"
+)
+oxqf_set_project_warnings(oxq_core_state_validation_test)
+oxqf_enable_sanitizers(oxq_core_state_validation_test)
+add_test(NAME core.state-validation COMMAND oxq_core_state_validation_test)
+
 add_executable(oxq_core_codec_container_test core/codec/container_test.cpp)
 target_link_libraries(oxq_core_codec_container_test PRIVATE OXQF::core)
 target_include_directories(
@@ -147,6 +157,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
   set_tests_properties(
     core.header-smoke
     core.game-model
+    core.state-validation
     core.codec-container
     core.codec-string-pool
     core.codec-metadata

@@ -17,6 +17,7 @@ target_sources(
     src/game_model.cpp
     src/product.cpp
     src/reader.cpp
+    src/state_validation.cpp
     src/utf8.cpp
     src/validation.cpp
     src/validator.cpp
@@ -29,6 +30,7 @@ target_sources(
       include/oxq/core/codec_error.hpp
       include/oxq/core/product.hpp
       include/oxq/core/reader.hpp
+      include/oxq/core/state_validation.hpp
       include/oxq/core/validation.hpp
       include/oxq/core/validator.hpp
       include/oxq/core/writer.hpp
