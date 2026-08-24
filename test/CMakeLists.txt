@@ -144,6 +144,16 @@ oxqf_set_project_warnings(oxq_core_writer_test)
 oxqf_enable_sanitizers(oxq_core_writer_test)
 add_test(NAME core.writer COMMAND oxq_core_writer_test)
 
+add_executable(oxq_core_malformed_regression_test core/malformed_regression_test.cpp)
+target_link_libraries(oxq_core_malformed_regression_test PRIVATE OXQF::core)
+target_compile_definitions(
+  oxq_core_malformed_regression_test
+  PRIVATE OXQF_VECTOR_DIRECTORY="${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1"
+)
+oxqf_set_project_warnings(oxq_core_malformed_regression_test)
+oxqf_enable_sanitizers(oxq_core_malformed_regression_test)
+add_test(NAME core.malformed-regression COMMAND oxq_core_malformed_regression_test)
+
 add_executable(oxq_convert_header_smoke convert/header_smoke.cpp)
 target_link_libraries(oxq_convert_header_smoke PRIVATE OXQF::convert)
 oxqf_set_project_warnings(oxq_convert_header_smoke)
@@ -168,6 +178,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     core.reader
     core.validator
     core.writer
+    core.malformed-regression
     convert.header-smoke
     cli.version
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"

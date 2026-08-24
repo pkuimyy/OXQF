@@ -160,6 +160,13 @@ int main() {
   if (!std::get<oxq::core::ReaderResult>(full_read).diagnostics.canonical_ordering()) {
     return 11;
   }
+  const auto full_rewritten =
+      oxq::core::write_oxq(std::get<oxq::core::ReaderResult>(full_read).game);
+  if (!std::holds_alternative<std::vector<std::byte>>(full_rewritten) ||
+      std::get<std::vector<std::byte>>(full_rewritten) !=
+          std::get<std::vector<std::byte>>(full_written)) {
+    return 15;
+  }
 
   oxq::core::WriterLimits limits;
   limits.max_extended_metadata_bytes = 4;
