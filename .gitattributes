@@ -1,3 +1,6 @@
 *.CBL binary
 *.cbl binary
 *.oxq binary
+test/gold-baseline/GAME_TEST_09.txt binary
+test/gold-baseline/SHA256SUMS text eol=lf
+test/vectors/oxq-v1/manifest.json text eol=lf

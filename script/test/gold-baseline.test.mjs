@@ -11,7 +11,7 @@ test("gold baseline files match SHA256SUMS", async () => {
     path.join(baselineDirectory, "SHA256SUMS"),
     "utf8",
   );
-  const entries = manifest.trim().split("\n").map((line) => {
+  const entries = manifest.trim().split(/\r?\n/).map((line) => {
     const match = /^([0-9a-f]{64})  ([^/]+)$/.exec(line);
     assert.ok(match, `invalid SHA256SUMS line: ${line}`);
     return { expectedHash: match[1], fileName: match[2] };
