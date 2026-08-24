@@ -1,6 +1,7 @@
 #include "codec/string_pool.hpp"
 
 #include "codec/binary.hpp"
+#include "unicode_nfc.hpp"
 #include "utf8.hpp"
 
 #include <algorithm>
@@ -105,6 +106,9 @@ StringPoolResult read_string_pool(std::span<const std::byte> input, const Contai
     if (const auto invalid = first_invalid_utf8(value); invalid.has_value()) {
       return error(CodecErrorCode::invalid_utf8, section->offset + data_begin + *invalid,
                    "utf8_bytes", "String Record contains invalid UTF-8");
+    }
+    if (!is_nfc(value)) {
+      result.canonical_nfc = false;
     }
 
     std::size_t record_end = 0;

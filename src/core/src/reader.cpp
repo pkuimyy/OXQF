@@ -15,8 +15,9 @@
 namespace oxq::core {
 
 bool ReaderDiagnostics::canonical_ordering() const noexcept {
-  return canonical_section_order && canonical_string_pool_order && canonical_metadata_order &&
-         canonical_extended_metadata && canonical_piece_order && canonical_node_order;
+  return canonical_section_order && canonical_string_pool_order && canonical_string_nfc &&
+         canonical_metadata_order && canonical_extended_metadata && canonical_piece_order &&
+         canonical_node_order;
 }
 
 ReaderOutcome read_oxq(std::span<const std::byte> input, const ReaderLimits& limits) {
@@ -75,6 +76,7 @@ ReaderOutcome read_oxq(std::span<const std::byte> input, const ReaderLimits& lim
   result.game.move_tree = std::move(move_tree.value);
   result.diagnostics.canonical_section_order = container.canonical_order;
   result.diagnostics.canonical_string_pool_order = strings.canonical_order;
+  result.diagnostics.canonical_string_nfc = strings.canonical_nfc;
   result.diagnostics.canonical_metadata_order = metadata.canonical_order;
   result.diagnostics.canonical_extended_metadata = decoded_metadata.canonical_extensions;
   result.diagnostics.canonical_piece_order = position.canonical_order;

@@ -176,5 +176,30 @@ int main() {
           oxq::core::WriterErrorCode::resource_limit) {
     return 9;
   }
+
+  auto decomposed = full;
+  decomposed.metadata.title = "e\u0301";
+  decomposed.metadata.extensions["org.openxiangqi.cbl"]["labels"] =
+      std::vector<std::string>{"a\u0315\u0300"};
+  decomposed.move_tree.nodes[0].annotations[0].text = "e\u0301";
+  const auto nfc_written = oxq::core::write_oxq(decomposed);
+  if (!std::holds_alternative<std::vector<std::byte>>(nfc_written)) {
+    return 16;
+  }
+  const auto nfc_read =
+      oxq::core::read_oxq(std::get<std::vector<std::byte>>(nfc_written));
+  if (!std::holds_alternative<oxq::core::ReaderResult>(nfc_read)) {
+    return 17;
+  }
+  const auto& nfc_result = std::get<oxq::core::ReaderResult>(nfc_read);
+  if (nfc_result.game.metadata.title != "é" ||
+      std::get<std::vector<std::string>>(
+          nfc_result.game.metadata.extensions.at("org.openxiangqi.cbl").at("labels")) !=
+          std::vector<std::string>{"à\u0315"} ||
+      nfc_result.game.move_tree.nodes[0].annotations[0].text != "é" ||
+      !nfc_result.diagnostics.canonical_string_nfc ||
+      !nfc_result.diagnostics.canonical_ordering()) {
+    return 18;
+  }
   return 0;
 }

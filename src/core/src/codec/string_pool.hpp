@@ -29,6 +29,7 @@ struct StringRecordView {
 struct StringPoolView {
   std::vector<StringRecordView> records;
   bool canonical_order{true};
+  bool canonical_nfc{true};
 
   [[nodiscard]] std::optional<std::string_view> find(std::uint32_t reference) const noexcept;
   [[nodiscard]] const StringRecordView* find_record(std::uint32_t reference) const noexcept;

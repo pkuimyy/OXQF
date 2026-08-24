@@ -20,6 +20,16 @@ oxqf_set_project_warnings(oxq_core_state_validation_test)
 oxqf_enable_sanitizers(oxq_core_state_validation_test)
 add_test(NAME core.state-validation COMMAND oxq_core_state_validation_test)
 
+add_executable(oxq_core_unicode_nfc_test core/unicode_nfc_test.cpp)
+target_link_libraries(oxq_core_unicode_nfc_test PRIVATE OXQF::core)
+target_include_directories(
+  oxq_core_unicode_nfc_test
+  PRIVATE "${PROJECT_SOURCE_DIR}/src/core/src"
+)
+oxqf_set_project_warnings(oxq_core_unicode_nfc_test)
+oxqf_enable_sanitizers(oxq_core_unicode_nfc_test)
+add_test(NAME core.unicode-nfc COMMAND oxq_core_unicode_nfc_test)
+
 add_executable(oxq_core_codec_container_test core/codec/container_test.cpp)
 target_link_libraries(oxq_core_codec_container_test PRIVATE OXQF::core)
 target_include_directories(
@@ -218,6 +228,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     core.header-smoke
     core.game-model
     core.state-validation
+    core.unicode-nfc
     core.codec-container
     core.codec-string-pool
     core.codec-metadata

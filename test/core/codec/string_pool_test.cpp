@@ -148,5 +148,19 @@ int main() {
   if (!empty_value.has_value() || !empty_value->empty()) {
     return 15;
   }
+
+  const std::vector<std::byte> decomposed_nfc{
+      std::byte{1},   std::byte{0},    std::byte{8},    std::byte{0},
+      std::byte{1},   std::byte{0},    std::byte{0},    std::byte{0},
+      std::byte{3},   std::byte{0},    std::byte{0},    std::byte{0},
+      std::byte{'e'}, std::byte{0xcc}, std::byte{0x81}, std::byte{0},
+  };
+  synthetic.sections[0].size = decomposed_nfc.size();
+  const auto decomposed_result =
+      oxq::core::detail::read_string_pool(decomposed_nfc, synthetic);
+  if (!std::holds_alternative<oxq::core::detail::StringPoolView>(decomposed_result) ||
+      std::get<oxq::core::detail::StringPoolView>(decomposed_result).canonical_nfc) {
+    return 16;
+  }
   return 0;
 }

@@ -19,6 +19,7 @@ target_sources(
     src/reader.cpp
     src/state_validation.cpp
     src/utf8.cpp
+    src/unicode_nfc.cpp
     src/validation.cpp
     src/validator.cpp
     src/writer.cpp

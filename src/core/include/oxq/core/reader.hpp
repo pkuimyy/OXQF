@@ -25,6 +25,7 @@ struct ReaderLimits {
 struct ReaderDiagnostics {
   bool canonical_section_order{true};
   bool canonical_string_pool_order{true};
+  bool canonical_string_nfc{true};
   bool canonical_metadata_order{true};
   bool canonical_extended_metadata{true};
   bool canonical_piece_order{true};

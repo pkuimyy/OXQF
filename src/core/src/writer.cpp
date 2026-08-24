@@ -3,6 +3,7 @@
 #include "codec/binary.hpp"
 #include "codec/crc32c.hpp"
 #include "codec/restricted_json.hpp"
+#include "unicode_nfc.hpp"
 
 #include <algorithm>
 #include <array>
@@ -15,6 +16,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -100,6 +102,100 @@ struct Section {
   std::size_t offset{};
   std::uint32_t crc{};
 };
+
+void normalize(std::optional<std::string>& value) {
+  if (value.has_value()) {
+    *value = detail::normalize_nfc(*value);
+  }
+}
+
+void normalize(PlayerMetadata& player) {
+  normalize(player.name);
+  normalize(player.id);
+  normalize(player.country);
+  normalize(player.title);
+  normalize(player.team);
+  normalize(player.time_used);
+}
+
+void normalize(EventMetadata& event) {
+  normalize(event.name);
+  normalize(event.id);
+  normalize(event.location);
+  normalize(event.organizer);
+  normalize(event.round);
+  normalize(event.type);
+  normalize(event.group);
+  normalize(event.board_number);
+  normalize(event.time_control);
+  normalize(event.start_time);
+  normalize(event.end_time);
+}
+
+void normalize(OpeningMetadata& opening) {
+  normalize(opening.name);
+  normalize(opening.code);
+  normalize(opening.id);
+}
+
+void normalize(Provenance& provenance) {
+  normalize(provenance.source_format);
+  normalize(provenance.source_record_id);
+  normalize(provenance.source_uri);
+  normalize(provenance.import_note);
+  normalize(provenance.source_format_version);
+  normalize(provenance.source_library_id);
+  normalize(provenance.source_library_name);
+  normalize(provenance.source_category);
+}
+
+void normalize(GameModel& game) {
+  auto& metadata = game.metadata;
+  normalize(metadata.red_player);
+  normalize(metadata.black_player);
+  normalize(metadata.event);
+  normalize(metadata.result_text);
+  normalize(metadata.opening);
+  normalize(metadata.title);
+  for (auto& tag : metadata.tags) {
+    tag = detail::normalize_nfc(tag);
+  }
+  normalize(metadata.game_type);
+  normalize(metadata.referee);
+  normalize(metadata.recorder);
+  normalize(metadata.commentator);
+  normalize(metadata.commentator_uri);
+  normalize(metadata.creator);
+  normalize(metadata.creator_uri);
+  normalize(metadata.record_created_at);
+  normalize(metadata.record_modified_at);
+  normalize(metadata.provenance);
+  for (auto& [name_space, properties] : metadata.extensions) {
+    static_cast<void>(name_space);
+    for (auto& [key, value] : properties) {
+      static_cast<void>(key);
+      std::visit(
+          [](auto& strings) {
+            using Value = std::decay_t<decltype(strings)>;
+            if constexpr (std::is_same_v<Value, std::string>) {
+              strings = detail::normalize_nfc(strings);
+            } else {
+              for (auto& string : strings) {
+                string = detail::normalize_nfc(string);
+              }
+            }
+          },
+          value);
+    }
+  }
+  for (auto& node : game.move_tree.nodes) {
+    for (auto& annotation : node.annotations) {
+      annotation.text = detail::normalize_nfc(annotation.text);
+      normalize(annotation.author);
+      normalize(annotation.language);
+    }
+  }
+}
 
 [[nodiscard]] WriterError failure(WriterErrorCode code, std::string message,
                                   std::optional<std::uint64_t> expected = {},
@@ -498,7 +594,9 @@ WriterOutcome write_oxq(const GameModel& game, const WriterLimits& limits) {
     return error;
   }
 
-  auto metadata = plan_metadata(game.metadata);
+  auto normalized = game;
+  normalize(normalized);
+  auto metadata = plan_metadata(normalized.metadata);
   if (metadata.size() > limits.max_metadata_fields) {
     return failure(WriterErrorCode::resource_limit, "Metadata Field count limit exceeded",
                    limits.max_metadata_fields, metadata.size());
@@ -506,10 +604,10 @@ WriterOutcome write_oxq(const GameModel& game, const WriterLimits& limits) {
   if (metadata.size() > std::numeric_limits<std::uint32_t>::max()) {
     return failure(WriterErrorCode::integer_overflow, "Metadata Field count exceeds u32");
   }
-  if (game.move_tree.nodes.size() > std::numeric_limits<std::uint32_t>::max()) {
+  if (normalized.move_tree.nodes.size() > std::numeric_limits<std::uint32_t>::max()) {
     return failure(WriterErrorCode::integer_overflow, "Move Tree node count exceeds u32");
   }
-  if (!game.metadata.extensions.empty() &&
+  if (!normalized.metadata.extensions.empty() &&
       std::get<std::string>(metadata.back().value).size() >
           limits.max_extended_metadata_bytes) {
     return failure(WriterErrorCode::resource_limit,
@@ -519,12 +617,12 @@ WriterOutcome write_oxq(const GameModel& game, const WriterLimits& limits) {
   }
 
   std::map<std::string, std::uint32_t, UnsignedStringLess> strings;
-  collect_strings(game, metadata, strings);
+  collect_strings(normalized, metadata, strings);
   auto string_pool_result = build_string_pool(strings, limits);
   if (std::holds_alternative<WriterError>(string_pool_result)) {
     return std::get<WriterError>(std::move(string_pool_result));
   }
-  auto tree_plan_result = plan_tree(game.move_tree, limits);
+  auto tree_plan_result = plan_tree(normalized.move_tree, limits);
   if (std::holds_alternative<WriterError>(tree_plan_result)) {
     return std::get<WriterError>(std::move(tree_plan_result));
   }
@@ -532,12 +630,12 @@ WriterOutcome write_oxq(const GameModel& game, const WriterLimits& limits) {
 
   std::array<Section, 5> sections{
       Section{1, build_metadata(metadata, strings)},
-      Section{2, build_position(game.initial_position)},
-      Section{3, build_move_tree(game.move_tree, tree_plan)},
-      Section{4, build_annotations(game.move_tree, tree_plan, strings)},
+      Section{2, build_position(normalized.initial_position)},
+      Section{3, build_move_tree(normalized.move_tree, tree_plan)},
+      Section{4, build_annotations(normalized.move_tree, tree_plan, strings)},
       Section{5, std::get<std::vector<std::byte>>(std::move(string_pool_result))},
   };
-  return build_container(game.uuid, std::move(sections), limits);
+  return build_container(normalized.uuid, std::move(sections), limits);
 }
 
 }  // namespace oxq::core
