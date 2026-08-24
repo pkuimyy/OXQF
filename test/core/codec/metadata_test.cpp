@@ -5,6 +5,7 @@
 #include <oxq/core/codec_error.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -99,6 +100,11 @@ int main() {
       !metadata.canonical_order || metadata.unknown_field_count != 0) {
     return 8;
   }
+  const auto decoded_title = oxq::core::detail::decode_metadata(metadata);
+  if (!std::holds_alternative<oxq::core::detail::DecodedMetadata>(decoded_title) ||
+      std::get<oxq::core::detail::DecodedMetadata>(decoded_title).value.title != "对局示例") {
+    return 17;
+  }
 
   auto wrong_type = bytes;
   wrong_type[section->offset + 10] = std::byte{1};
@@ -172,6 +178,46 @@ int main() {
   if (!error_is(oxq::core::detail::read_metadata(bytes, container, pool, limits),
                 oxq::core::CodecErrorCode::resource_limit, section->offset + 4)) {
     return 16;
+  }
+
+  const std::array<std::byte, 4> rating_bytes{
+      std::byte{0x35}, std::byte{0x08}, std::byte{0}, std::byte{0}};
+  const std::array<std::byte, 4> result_bytes{
+      std::byte{1}, std::byte{0}, std::byte{0}, std::byte{0}};
+  const std::string extension_json =
+      R"({"org.openxiangqi.cbl":{"display_index":"12"}})";
+  oxq::core::detail::MetadataView projection;
+  projection.fields.push_back(
+      {0x0007, 2, 0, rating_bytes, std::nullopt, 100, std::nullopt, true});
+  projection.fields.push_back(
+      {0x0030, 1, 0, result_bytes, std::nullopt, 104, std::nullopt, true});
+  projection.fields.push_back(
+      {0x0051, 5, 2, {}, std::string_view{"研究"}, 108, 200, true});
+  projection.fields.push_back(
+      {0x7fff, 5, 0, {}, std::string_view{extension_json}, 112, 300, true});
+  const auto projection_result = oxq::core::detail::decode_metadata(projection);
+  if (!std::holds_alternative<oxq::core::detail::DecodedMetadata>(projection_result)) {
+    return 18;
+  }
+  const auto& projected = std::get<oxq::core::detail::DecodedMetadata>(projection_result);
+  if (projected.value.red_player.rating != 2101 ||
+      projected.value.result != oxq::core::GameResult::red_win ||
+      projected.value.tags != std::vector<std::string>{"研究"} ||
+      std::get<std::string>(
+          projected.value.extensions.at("org.openxiangqi.cbl").at("display_index")) != "12" ||
+      !projected.canonical_extensions) {
+    return 19;
+  }
+
+  const std::string invalid_json = R"({"org.example":{"value":1}})";
+  projection.fields.back().string_value = invalid_json;
+  projection.fields.back().string_data_offset = 400;
+  const auto invalid_projection = oxq::core::detail::decode_metadata(projection);
+  if (!std::holds_alternative<oxq::core::CodecError>(invalid_projection) ||
+      std::get<oxq::core::CodecError>(invalid_projection).code !=
+          oxq::core::CodecErrorCode::invalid_metadata ||
+      std::get<oxq::core::CodecError>(invalid_projection).offset < 400) {
+    return 20;
   }
   return 0;
 }

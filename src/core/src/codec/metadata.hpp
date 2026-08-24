@@ -4,6 +4,7 @@
 #include "codec/string_pool.hpp"
 
 #include <oxq/core/codec_error.hpp>
+#include <oxq/core/game_model.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -35,6 +36,8 @@ struct MetadataFieldView {
   std::uint8_t flags{};
   std::span<const std::byte> raw_value;
   std::optional<std::string_view> string_value;
+  std::size_t value_offset{};
+  std::optional<std::size_t> string_data_offset;
   bool standard{};
 };
 
@@ -47,11 +50,22 @@ struct MetadataView {
 
 using MetadataResult = std::variant<MetadataView, CodecError>;
 
+struct DecodedMetadata {
+  GameMetadata value;
+  bool canonical_extensions{true};
+};
+
+using DecodedMetadataResult = std::variant<DecodedMetadata, CodecError>;
+
 // Returned spans and string_views borrow from input and strings.
 [[nodiscard]] MetadataResult read_metadata(
     std::span<const std::byte> input,
     const ContainerView& container,
     const StringPoolView& strings,
     const MetadataLimits& limits = {});
+
+[[nodiscard]] DecodedMetadataResult decode_metadata(
+    const MetadataView& metadata,
+    std::size_t max_extended_metadata_bytes = 1024U * 1024U);
 
 }  // namespace oxq::core::detail

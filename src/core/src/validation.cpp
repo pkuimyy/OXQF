@@ -1,5 +1,6 @@
 #include <oxq/core/validation.hpp>
 
+#include "extension_name.hpp"
 #include "utf8.hpp"
 
 #include <algorithm>
@@ -136,41 +137,6 @@ namespace {
     }
   }
   return valid_zone(text.substr(cursor)) ? std::optional<DatePrecision>{precision} : std::nullopt;
-}
-
-[[nodiscard]] bool valid_namespace(std::string_view value) noexcept {
-  if (value.empty() || value.front() == '.' || value.back() == '.' || value.find('.') == value.npos) {
-    return false;
-  }
-  bool at_segment_start = true;
-  char previous = '\0';
-  for (const char character : value) {
-    if (character == '.') {
-      if (at_segment_start || previous == '-') {
-        return false;
-      }
-      at_segment_start = true;
-    } else {
-      const bool letter = character >= 'a' && character <= 'z';
-      const bool digit = character >= '0' && character <= '9';
-      if ((!letter && !digit && character != '-') || (at_segment_start && !letter)) {
-        return false;
-      }
-      at_segment_start = false;
-    }
-    previous = character;
-  }
-  return !at_segment_start && previous != '-';
-}
-
-[[nodiscard]] bool valid_extension_key(std::string_view value) noexcept {
-  if (value.empty() || value.front() < 'a' || value.front() > 'z') {
-    return false;
-  }
-  return std::ranges::all_of(value, [](char character) {
-    return (character >= 'a' && character <= 'z') ||
-           (character >= '0' && character <= '9') || character == '_';
-  });
 }
 
 }  // namespace
@@ -468,7 +434,7 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
 
   for (const auto& [name_space, properties] : game.metadata.extensions) {
     const std::string path = "metadata.extensions[" + name_space + "]";
-    if (!valid_namespace(name_space)) {
+    if (!detail::valid_extension_namespace(name_space)) {
       report(ValidationCode::invalid_extension_namespace, path,
              "namespace must be a lowercase reverse-domain name");
     }
@@ -477,7 +443,7 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
     }
     for (const auto& [key, value] : properties) {
       const std::string value_path = path + "[" + key + "]";
-      if (!valid_extension_key(key)) {
+      if (!detail::valid_extension_key(key)) {
         report(ValidationCode::invalid_extension_key, value_path,
                "extension key must be lowercase ASCII snake_case");
       }

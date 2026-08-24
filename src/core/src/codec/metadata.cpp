@@ -1,9 +1,11 @@
 #include "codec/metadata.hpp"
 
 #include "codec/binary.hpp"
+#include "codec/restricted_json.hpp"
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -206,11 +208,13 @@ MetadataResult read_metadata(std::span<const std::byte> input, const ContainerVi
     std::optional<std::string_view> string_value;
     if (value_type == static_cast<std::uint8_t>(MetadataValueType::string_ref)) {
       const auto reference = read_u32(raw_value, 0);
-      if (reference == 0 || !(string_value = strings.find(reference)).has_value()) {
+      const auto* record = strings.find_record(reference);
+      if (reference == 0 || record == nullptr) {
         return error(CodecErrorCode::invalid_string_ref, section->offset + value_begin,
                      "string_ref", "Metadata STRING_REF does not point to a String Record",
                      {}, reference);
       }
+      string_value = record->value;
     } else if (value_type == static_cast<std::uint8_t>(MetadataValueType::boolean) &&
                std::to_integer<std::uint8_t>(raw_value[0]) > 1) {
       return error(CodecErrorCode::invalid_metadata, section->offset + value_begin, "BOOL",
@@ -255,13 +259,109 @@ MetadataResult read_metadata(std::span<const std::byte> input, const ContainerVi
       previous_repeated_tag.reset();
     }
     previous_tag = tag;
-    result.fields.push_back({tag, value_type, flags, raw_value, string_value, standard});
+    std::optional<std::size_t> string_data_offset;
+    if (value_type == static_cast<std::uint8_t>(MetadataValueType::string_ref)) {
+      string_data_offset = strings.find_record(read_u32(raw_value, 0))->data_offset;
+    }
+    result.fields.push_back({tag, value_type, flags, raw_value, string_value,
+                             section->offset + value_begin, string_data_offset, standard});
     cursor = field_end;
   }
   if (cursor != payload.size()) {
     return error(CodecErrorCode::invalid_metadata, section->offset + cursor, "trailing_data",
                  "GAME_METADATA contains bytes beyond field_count records", cursor,
                  payload.size());
+  }
+  return result;
+}
+
+DecodedMetadataResult decode_metadata(const MetadataView& metadata,
+                                      std::size_t max_extended_metadata_bytes) {
+  DecodedMetadata result;
+  const auto text = [](const MetadataFieldView& field) {
+    return std::string{*field.string_value};
+  };
+  const auto signed_32 = [](const MetadataFieldView& field) {
+    return std::bit_cast<std::int32_t>(read_u32(field.raw_value, 0));
+  };
+
+  for (const auto& field : metadata.fields) {
+    switch (field.tag) {
+      case 0x0001: result.value.red_player.name = text(field); break;
+      case 0x0002: result.value.black_player.name = text(field); break;
+      case 0x0003: result.value.red_player.id = text(field); break;
+      case 0x0004: result.value.black_player.id = text(field); break;
+      case 0x0005: result.value.red_player.country = text(field); break;
+      case 0x0006: result.value.black_player.country = text(field); break;
+      case 0x0007: result.value.red_player.rating = signed_32(field); break;
+      case 0x0008: result.value.black_player.rating = signed_32(field); break;
+      case 0x0009: result.value.red_player.title = text(field); break;
+      case 0x000a: result.value.black_player.title = text(field); break;
+      case 0x000b: result.value.red_player.team = text(field); break;
+      case 0x000c: result.value.black_player.team = text(field); break;
+      case 0x000d: result.value.red_player.time_used = text(field); break;
+      case 0x000e: result.value.black_player.time_used = text(field); break;
+      case 0x0010: result.value.event.name = text(field); break;
+      case 0x0011: result.value.event.id = text(field); break;
+      case 0x0012: result.value.event.location = text(field); break;
+      case 0x0013: result.value.event.organizer = text(field); break;
+      case 0x0014: result.value.event.round = text(field); break;
+      case 0x0015: result.value.event.type = text(field); break;
+      case 0x0016: result.value.event.group = text(field); break;
+      case 0x0017: result.value.event.board_number = text(field); break;
+      case 0x0018: result.value.event.time_control = text(field); break;
+      case 0x0020: result.value.event.start_time = text(field); break;
+      case 0x0021: result.value.event.end_time = text(field); break;
+      case 0x0022:
+        result.value.event.date_precision = static_cast<DatePrecision>(read_u32(field.raw_value, 0));
+        break;
+      case 0x0030:
+        result.value.result = static_cast<GameResult>(read_u32(field.raw_value, 0));
+        break;
+      case 0x0031: result.value.result_text = text(field); break;
+      case 0x0040: result.value.opening.name = text(field); break;
+      case 0x0041: result.value.opening.code = text(field); break;
+      case 0x0042: result.value.opening.id = text(field); break;
+      case 0x0050: result.value.title = text(field); break;
+      case 0x0051: result.value.tags.push_back(text(field)); break;
+      case 0x0052: result.value.game_type = text(field); break;
+      case 0x0060: result.value.referee = text(field); break;
+      case 0x0061: result.value.recorder = text(field); break;
+      case 0x0062: result.value.commentator = text(field); break;
+      case 0x0063: result.value.commentator_uri = text(field); break;
+      case 0x0064: result.value.creator = text(field); break;
+      case 0x0065: result.value.creator_uri = text(field); break;
+      case 0x0066: result.value.record_created_at = text(field); break;
+      case 0x0067: result.value.record_modified_at = text(field); break;
+      case 0x0100: result.value.provenance.source_format = text(field); break;
+      case 0x0101: result.value.provenance.source_record_id = text(field); break;
+      case 0x0102: result.value.provenance.source_uri = text(field); break;
+      case 0x0103: result.value.provenance.import_note = text(field); break;
+      case 0x0104: result.value.provenance.source_format_version = text(field); break;
+      case 0x0105: result.value.provenance.source_library_id = text(field); break;
+      case 0x0106: result.value.provenance.source_library_name = text(field); break;
+      case 0x0107: result.value.provenance.source_category = text(field); break;
+      case 0x7fff: {
+        const auto parsed = parse_restricted_metadata_json(*field.string_value,
+                                                           max_extended_metadata_bytes);
+        if (std::holds_alternative<RestrictedJsonError>(parsed)) {
+          const auto& json_error = std::get<RestrictedJsonError>(parsed);
+          return error(CodecErrorCode::invalid_metadata,
+                       field.string_data_offset.value_or(field.value_offset) + json_error.offset,
+                       "EXTENDED_METADATA", json_error.message);
+        }
+        auto document = std::get<RestrictedJsonDocument>(parsed);
+        result.value.extensions = std::move(document.value);
+        result.canonical_extensions = document.canonical;
+        break;
+      }
+      default:
+        if (field.standard) {
+          return error(CodecErrorCode::invalid_metadata, field.value_offset, "tag",
+                       "standard Metadata tag has no GameMetadata projection", {}, field.tag);
+        }
+        break;
+    }
   }
   return result;
 }

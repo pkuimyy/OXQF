@@ -23,6 +23,7 @@ struct StringPoolLimits {
 struct StringRecordView {
   std::uint32_t reference{};
   std::string_view value;
+  std::size_t data_offset{};
 };
 
 struct StringPoolView {
@@ -30,6 +31,7 @@ struct StringPoolView {
   bool canonical_order{true};
 
   [[nodiscard]] std::optional<std::string_view> find(std::uint32_t reference) const noexcept;
+  [[nodiscard]] const StringRecordView* find_record(std::uint32_t reference) const noexcept;
 };
 
 using StringPoolResult = std::variant<StringPoolView, CodecError>;

@@ -34,11 +34,16 @@ constexpr std::uint32_t kStringPoolType = 5;
 }  // namespace
 
 std::optional<std::string_view> StringPoolView::find(std::uint32_t reference) const noexcept {
+  const auto* record = find_record(reference);
+  return record == nullptr ? std::nullopt : std::optional<std::string_view>{record->value};
+}
+
+const StringRecordView* StringPoolView::find_record(std::uint32_t reference) const noexcept {
   const auto found = std::ranges::lower_bound(records, reference, {}, &StringRecordView::reference);
   if (found == records.end() || found->reference != reference) {
-    return std::nullopt;
+    return nullptr;
   }
-  return found->value;
+  return &*found;
 }
 
 StringPoolResult read_string_pool(std::span<const std::byte> input, const ContainerView& container,
@@ -118,7 +123,7 @@ StringPoolResult read_string_pool(std::span<const std::byte> input, const Contai
       result.canonical_order = false;
     }
     previous = value;
-    result.records.push_back({reference, value});
+    result.records.push_back({reference, value, section->offset + data_begin});
     cursor = record_end;
   }
   if (cursor != payload.size()) {

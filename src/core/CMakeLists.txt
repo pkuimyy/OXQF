@@ -7,7 +7,9 @@ target_sources(
     src/codec/container.cpp
     src/codec/crc32c.cpp
     src/codec/metadata.cpp
+    src/codec/restricted_json.cpp
     src/codec/string_pool.cpp
+    src/extension_name.cpp
     src/game_model.cpp
     src/product.cpp
     src/utf8.cpp
