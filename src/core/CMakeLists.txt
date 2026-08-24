@@ -4,6 +4,7 @@ add_library(OXQF::core ALIAS oxq_core)
 target_sources(
   oxq_core
   PRIVATE
+    src/codec/annotation.cpp
     src/codec/container.cpp
     src/codec/crc32c.cpp
     src/codec/metadata.cpp
