@@ -20,6 +20,7 @@ target_sources(
     src/utf8.cpp
     src/validation.cpp
     src/validator.cpp
+    src/writer.cpp
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
@@ -30,6 +31,7 @@ target_sources(
       include/oxq/core/reader.hpp
       include/oxq/core/validation.hpp
       include/oxq/core/validator.hpp
+      include/oxq/core/writer.hpp
 )
 
 target_compile_features(oxq_core PUBLIC cxx_std_20)
