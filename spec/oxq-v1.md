@@ -1,6 +1,6 @@
 # OXQ v1 单局棋谱二进制格式规范
 
-状态：v1.0 Release Candidate 1（格式已冻结，待独立 Reader 验证后去除 RC 标记）  
+状态：v1.0 正式版（磁盘格式已冻结，参考实现和独立 Reader 已验证）<br>
 格式族：OXQF（Open Xiangqi Format）  
 格式名称：OXQ（Open Xiangqi Game）  
 目标版本：1.0  
@@ -929,4 +929,4 @@ v1.0 参考实现保留第 16 节的默认限制。它们是参考实现策略�
 
 v1.0 要求规范化 Writer 将所有文本转换为 NFC，Reader 必须接受合法 UTF-8 但非 NFC 的非规范化文件，具体行为见第 7 节。确定性保证适用于规范化写入结果，不要求 Reader 把所有可读文件都误报为规范化编码。
 
-至此，v1.0 磁盘格式不再保留开放设计问题。手工测试向量位于 [`test/vectors/oxq-v1`](../test/vectors/oxq-v1/README.md)；参考实现和独立 Reader 可读性验证完成后，可以去除 RC 标记并发布最终 v1.0，不再修改同版本磁盘语义。
+至此，v1.0 磁盘格式不再保留开放设计问题。手工测试向量位于 [`test/vectors/oxq-v1`](../test/vectors/oxq-v1/README.md)；参考实现和不复用 `oxq-core` 的 Node.js 独立 Reader 已在 Linux 与 Windows 上完成可读性和语义真值验证。v1.0 已去除 RC 标记并正式冻结，不再修改同版本磁盘语义。

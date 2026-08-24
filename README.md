@@ -6,7 +6,7 @@ OXQF is the reference implementation workspace for the OXQ single-game format. T
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 
-The current source tree is an engineering skeleton. The frozen OXQ v1.0 RC1 specification is published at [spec/oxq-v1.md](spec/oxq-v1.md); implementation design documents are maintained under `.codex` during development.
+The current source tree is an engineering skeleton. The frozen OXQ v1.0 specification is published at [spec/oxq-v1.md](spec/oxq-v1.md); implementation design documents are maintained under `.codex` during development.
 
 ## Development prerequisites
 
