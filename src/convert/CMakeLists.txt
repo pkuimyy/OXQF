@@ -5,6 +5,7 @@ target_sources(
   oxq_convert
   PRIVATE
     src/cbl/container.cpp
+    src/cbl/record.cpp
     src/cbl_reader.cpp
     src/product.cpp
   PUBLIC

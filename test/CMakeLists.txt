@@ -230,6 +230,20 @@ oxqf_set_project_warnings(oxq_convert_cbl_container_test)
 oxqf_enable_sanitizers(oxq_convert_cbl_container_test)
 add_test(NAME convert.cbl-container COMMAND oxq_convert_cbl_container_test)
 
+add_executable(oxq_convert_cbl_record_test convert/cbl_record_test.cpp)
+target_link_libraries(oxq_convert_cbl_record_test PRIVATE OXQF::convert)
+target_include_directories(
+  oxq_convert_cbl_record_test
+  PRIVATE "${PROJECT_SOURCE_DIR}/src/convert/src"
+)
+target_compile_definitions(
+  oxq_convert_cbl_record_test
+  PRIVATE OXQF_GOLD_BASELINE_DIRECTORY="${PROJECT_SOURCE_DIR}/test/gold-baseline"
+)
+oxqf_set_project_warnings(oxq_convert_cbl_record_test)
+oxqf_enable_sanitizers(oxq_convert_cbl_record_test)
+add_test(NAME convert.cbl-record COMMAND oxq_convert_cbl_record_test)
+
 add_test(NAME cli.version COMMAND oxq --version)
 set_tests_properties(cli.version PROPERTIES PASS_REGULAR_EXPRESSION "^oxq ${PROJECT_VERSION}")
 
@@ -253,6 +267,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     core.deep-malformed
     convert.header-smoke
     convert.cbl-container
+    convert.cbl-record
     cli.version
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
   )
