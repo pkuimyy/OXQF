@@ -5,6 +5,7 @@
 #include <oxq/core/validation.hpp>
 
 #include <algorithm>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -182,6 +183,66 @@ void unsupported_optional(PreflightState& state, std::size_t game_index,
   }
 }
 
+[[nodiscard]] bool decimal_extension_value(const core::ExtensionValue& value,
+                                           std::uint32_t maximum) noexcept {
+  if (!std::holds_alternative<std::string>(value)) {
+    return false;
+  }
+  const auto& text = std::get<std::string>(value);
+  std::uint32_t parsed_value = 0;
+  const auto parsed = std::from_chars(text.data(), text.data() + text.size(),
+                                      parsed_value);
+  return !text.empty() && parsed.ec == std::errc{} &&
+         parsed.ptr == text.data() + text.size() && parsed_value <= maximum;
+}
+
+[[nodiscard]] bool hex_extension_text(std::string_view text,
+                                      std::size_t width) noexcept {
+  if (text.size() != width) {
+    return false;
+  }
+  return std::ranges::all_of(text, [](const char character) {
+    return (character >= '0' && character <= '9') ||
+           (character >= 'a' && character <= 'f') ||
+           (character >= 'A' && character <= 'F');
+  });
+}
+
+[[nodiscard]] bool restorable_cbl_extension(
+    std::string_view key, const core::ExtensionValue& value,
+    const core::GameModel& game) noexcept {
+  if (key == "record_type" || key == "result") {
+    return decimal_extension_value(value, 4);
+  }
+  if (key == "source_fullmove_number") {
+    return decimal_extension_value(value,
+                                   std::numeric_limits<std::uint32_t>::max());
+  }
+  if (key == "root_marker") {
+    return std::holds_alternative<std::string>(value) &&
+           hex_extension_text(std::get<std::string>(value), 8);
+  }
+  if (key == "source_controls") {
+    if (!std::holds_alternative<std::vector<std::string>>(value)) {
+      return false;
+    }
+    const auto& controls = std::get<std::vector<std::string>>(value);
+    return controls.size() == game.move_tree.nodes.size() &&
+           std::ranges::all_of(controls, [](const std::string& control) {
+             return hex_extension_text(control, 4);
+           });
+  }
+  if (key == "record_kind") {
+    return std::holds_alternative<std::string>(value) &&
+           game.metadata.game_type == std::get<std::string>(value);
+  }
+  if (key == "result_text") {
+    return std::holds_alternative<std::string>(value) &&
+           game.metadata.result_text == std::get<std::string>(value);
+  }
+  return false;
+}
+
 void check_metadata(PreflightState& state, const core::GameModel& game,
                     std::size_t game_index) {
   const auto& metadata = game.metadata;
@@ -284,8 +345,7 @@ void check_metadata(PreflightState& state, const core::GameModel& game,
   for (const auto& [name_space, properties] : metadata.extensions) {
     for (const auto& [key, value] : properties) {
       const bool restored = name_space == kCblExtension &&
-                            (key == "record_type" || key == "root_marker" ||
-                             key == "source_controls");
+                            restorable_cbl_extension(key, value, game);
       if (!restored) {
         diagnostic(state, ConversionSeverity::loss,
                    ConversionCode::cbl_write_extension_unsupported, game_index, {},

@@ -7,6 +7,7 @@ target_sources(
     src/cbl/container.cpp
     src/cbl/hash.cpp
     src/cbl/record.cpp
+    src/cbl/record_writer.cpp
     src/cbl/tree.cpp
     src/cbl_reader.cpp
     src/cbl_writer.cpp

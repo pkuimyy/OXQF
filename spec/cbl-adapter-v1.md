@@ -83,7 +83,7 @@ record-sha256=<record_sha256>
 | player id/country/title、event id/organizer、opening name/id、tags | 不写 | 丢失 |
 | 来源 URI、来源分类 | 写 From、URLOrCategory | 精确，受槽长限制 |
 | 其他 provenance | 不写入单局字段 | 丢失 |
-| `org.openxiangqi.cbl` 的 `record_type`、`root_marker`、`source_controls` | 校验后恢复非结构值；结构位由树重新计算 | 精确或规范化 |
+| `org.openxiangqi.cbl` 的 `record_type`、`result`、`source_fullmove_number`、`root_marker`、`source_controls` | 校验后恢复来源值；Control 结构位由树重新计算 | 精确或规范化 |
 | 其他扩展属性 | 不写 | 丢失 |
 
 固定 UTF-16LE 文本槽必须预留末尾 NUL；超过槽容量时宽松模式也不得截断生成。CBL 固定槽无法区分缺失字符串与存在但为空的字符串，因此后者属于已报告损失。
@@ -100,3 +100,5 @@ game-uuid=<第 2 局 UUID>
 ```
 
 棋局顺序参与身份；作者、时间和输出路径不参与。默认目录容量为 `max(128, game_count)`，调用方可提高最小容量；Writer 不生成墓碑、非棋局资源或随机填充。
+
+新建 Record 的未确认固定区和所有保留字节写零；版本写 `00 00 00 02`，没有可恢复来源值时 `RecordType=0`、`root_marker=0xffffffff`、Control 高位为零。Directory UUID 与 Record GUID 都从 `GameModel.uuid` 生成，任何固定 UTF-16LE 槽都使用最短合法编码、一个 NUL 和零填充。
