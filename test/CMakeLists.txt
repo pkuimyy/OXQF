@@ -269,6 +269,18 @@ oxqf_enable_sanitizers(oxq_convert_cbl_reader_test)
 add_test(NAME convert.cbl-reader COMMAND oxq_convert_cbl_reader_test)
 
 add_executable(
+  oxq_convert_cbl_writer_preflight_test
+  convert/cbl_writer_preflight_test.cpp
+)
+target_link_libraries(oxq_convert_cbl_writer_preflight_test PRIVATE OXQF::convert)
+oxqf_set_project_warnings(oxq_convert_cbl_writer_preflight_test)
+oxqf_enable_sanitizers(oxq_convert_cbl_writer_preflight_test)
+add_test(
+  NAME convert.cbl-writer-preflight
+  COMMAND oxq_convert_cbl_writer_preflight_test
+)
+
+add_executable(
   oxq_convert_cbl_semantic_baseline_test
   convert/cbl_semantic_baseline_test.cpp
 )
@@ -324,6 +336,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     convert.cbl-record
     convert.cbl-tree
     convert.cbl-reader
+    convert.cbl-writer-preflight
     convert.cbl-semantic-baseline
     cli.version
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"

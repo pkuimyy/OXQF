@@ -31,6 +31,13 @@ enum class ConversionCode : std::uint8_t {
   cbl_multiple_result,
   cbl_unknown_result,
   cbl_unknown_record_type,
+  cbl_write_library_uuid_derived,
+  cbl_write_invalid_game_model,
+  cbl_write_text_too_long,
+  cbl_write_metadata_unsupported,
+  cbl_write_result_normalized,
+  cbl_write_annotation_normalized,
+  cbl_write_extension_unsupported,
 };
 
 struct ConversionDiagnostic {

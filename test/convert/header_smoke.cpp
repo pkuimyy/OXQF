@@ -1,5 +1,6 @@
 #include <oxq/core/product.hpp>
 #include <oxq/convert/cbl_reader.hpp>
+#include <oxq/convert/cbl_writer.hpp>
 #include <oxq/convert/conversion_report.hpp>
 #include <oxq/convert/product.hpp>
 

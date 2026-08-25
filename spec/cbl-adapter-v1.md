@@ -59,3 +59,44 @@ record-sha256=<record_sha256>
 ## 4. 确定性
 
 同一 Adapter 版本在相同选项下读取相同 CBL 字节时，必须生成相同的棋局枚举顺序、UUID、GameModel 语义和规范化 OXQ 字节。
+
+## 5. 导出可表达性与 preflight
+
+`GameModel → CBL v3` 必须先运行完整 preflight，再分配目标文件缓冲区。结构无效、固定槽溢出、注释或 Record 超限属于不可生成错误；其他目标格式损失在宽松模式中允许生成并逐项报告，在严格模式中拒绝整个棋库。
+
+首版可表达性矩阵如下：
+
+| GameModel 语义 | CBL v3 策略 | 分类 |
+| --- | --- | --- |
+| 非零 RFC 9562 游戏 UUID | 同时写 Directory UUID 和 Record GUID | 精确 |
+| 初始局面、先行方、fullmove | 写 Board、SideToMove、FullmoveNumber | 精确 |
+| 有序变化树 | 转为 DFS 前序 child/sibling 流 | 精确 |
+| 每节点一条普通 comment，仅含文本 | 写节点或根注释块 | 精确 |
+| 多条注释 | 按原顺序以空行连接文本 | 有损规范化 |
+| source note、before-move、注释作者或语言 | 保留文本，丢弃 CBL 不支持的属性 | 有损规范化 |
+| 标题、棋手/队伍/用时/等级分、赛事、地点、轮次、组别、台号、用时规则 | 写已确认固定槽 | 精确，受槽长限制 |
+| DAY 精度的 `YYYY-MM-DD` 开始日期 | 写 Date | 精确 |
+| 其他日期精度、结束时间 | 不写 | 丢失 |
+| UNKNOWN、红胜、黑胜、和棋 | 写 Result 0..3 | 精确 |
+| 缺失结果、UNFINISHED、ABORTED | 写 Result 0 | 有损规范化 |
+| 1–3 字节 ASCII opening code | 写 ECCO | 精确 |
+| player id/country/title、event id/organizer、opening name/id、tags | 不写 | 丢失 |
+| 来源 URI、来源分类 | 写 From、URLOrCategory | 精确，受槽长限制 |
+| 其他 provenance | 不写入单局字段 | 丢失 |
+| `org.openxiangqi.cbl` 的 `record_type`、`root_marker`、`source_controls` | 校验后恢复非结构值；结构位由树重新计算 | 精确或规范化 |
+| 其他扩展属性 | 不写 | 丢失 |
+
+固定 UTF-16LE 文本槽必须预留末尾 NUL；超过槽容量时宽松模式也不得截断生成。CBL 固定槽无法区分缺失字符串与存在但为空的字符串，因此后者属于已报告损失。
+
+未显式提供库 UUID 时，Writer 使用本规范第 2.1 节 namespace，以以下 UTF-8 名称生成 UUIDv5：
+
+```text
+org.openxiangqi.cbl-writer/v1
+library-name-sha256=<棋库名 UTF-8 的 SHA-256>
+game-count=<十进制棋局数>
+game-uuid=<第 1 局 UUID>
+game-uuid=<第 2 局 UUID>
+...
+```
+
+棋局顺序参与身份；作者、时间和输出路径不参与。默认目录容量为 `max(128, game_count)`，调用方可提高最小容量；Writer 不生成墓碑、非棋局资源或随机填充。

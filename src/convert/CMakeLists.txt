@@ -9,12 +9,14 @@ target_sources(
     src/cbl/record.cpp
     src/cbl/tree.cpp
     src/cbl_reader.cpp
+    src/cbl_writer.cpp
     src/product.cpp
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
     FILES
       include/oxq/convert/cbl_reader.hpp
+      include/oxq/convert/cbl_writer.hpp
       include/oxq/convert/conversion_report.hpp
       include/oxq/convert/product.hpp
 )
