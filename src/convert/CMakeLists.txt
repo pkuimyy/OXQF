@@ -4,14 +4,19 @@ add_library(OXQF::convert ALIAS oxq_convert)
 target_sources(
   oxq_convert
   PRIVATE
+    src/cbl/container.cpp
+    src/cbl_reader.cpp
     src/product.cpp
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
-    FILES include/oxq/convert/product.hpp
+    FILES
+      include/oxq/convert/cbl_reader.hpp
+      include/oxq/convert/product.hpp
 )
 
 target_compile_features(oxq_convert PUBLIC cxx_std_20)
+target_include_directories(oxq_convert PRIVATE src)
 target_compile_definitions(oxq_convert PRIVATE OXQF_PROJECT_VERSION="${PROJECT_VERSION}")
 target_link_libraries(oxq_convert PUBLIC OXQF::core)
 
