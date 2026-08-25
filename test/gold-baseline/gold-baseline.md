@@ -17,6 +17,8 @@
 
 本 README 已将测试所需的预期内容展开；自动化测试不应依赖象棋桥 UI 或开发者记忆来判断解析结果。
 
+`semantic-baseline.json` 是对应的机器可读快照。它显式保存初始局面、完整有序着法树和注释，并保存每局规范化 `GameModel` 的确定性 OXQ 编码，以覆盖其余元数据、provenance 和扩展字段。`convert.cbl-semantic-baseline` 会从 12 个 CBL 重新生成快照并逐字节核对；有意修改转换语义时必须同步审阅和更新该文件。
+
 自定义局面 `GAME_TEST_09` 的象棋桥文本导出是该局面的补充真值：
 
 ```text
