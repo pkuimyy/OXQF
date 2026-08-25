@@ -21,6 +21,8 @@ enum class CblErrorCode : std::uint8_t {
   invalid_directory,
   resource_out_of_range,
   invalid_record,
+  invalid_comment,
+  invalid_move_tree,
 };
 
 struct CblError {
@@ -38,6 +40,9 @@ struct CblReaderLimits {
   std::size_t max_directory_entries{1'000'000};
   std::size_t max_total_blocks{1'000'000};
   std::size_t max_resource_bytes{64U * 1024U * 1024U};
+  std::size_t max_nodes{10'000'000};
+  std::size_t max_tree_depth{1'000'000};
+  std::size_t max_comment_bytes{16U * 1024U * 1024U};
 };
 
 struct CblLibraryInfo {

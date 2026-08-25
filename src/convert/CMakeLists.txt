@@ -6,6 +6,7 @@ target_sources(
   PRIVATE
     src/cbl/container.cpp
     src/cbl/record.cpp
+    src/cbl/tree.cpp
     src/cbl_reader.cpp
     src/product.cpp
   PUBLIC
