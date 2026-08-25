@@ -258,6 +258,16 @@ oxqf_set_project_warnings(oxq_convert_cbl_tree_test)
 oxqf_enable_sanitizers(oxq_convert_cbl_tree_test)
 add_test(NAME convert.cbl-tree COMMAND oxq_convert_cbl_tree_test)
 
+add_executable(oxq_convert_cbl_reader_test convert/cbl_reader_test.cpp)
+target_link_libraries(oxq_convert_cbl_reader_test PRIVATE OXQF::convert)
+target_compile_definitions(
+  oxq_convert_cbl_reader_test
+  PRIVATE OXQF_GOLD_BASELINE_DIRECTORY="${PROJECT_SOURCE_DIR}/test/gold-baseline"
+)
+oxqf_set_project_warnings(oxq_convert_cbl_reader_test)
+oxqf_enable_sanitizers(oxq_convert_cbl_reader_test)
+add_test(NAME convert.cbl-reader COMMAND oxq_convert_cbl_reader_test)
+
 add_test(NAME cli.version COMMAND oxq --version)
 set_tests_properties(cli.version PROPERTIES PASS_REGULAR_EXPRESSION "^oxq ${PROJECT_VERSION}")
 
@@ -283,6 +293,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     convert.cbl-container
     convert.cbl-record
     convert.cbl-tree
+    convert.cbl-reader
     cli.version
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
   )

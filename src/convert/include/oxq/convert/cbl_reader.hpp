@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oxq/convert/conversion_report.hpp>
 #include <oxq/core/game_model.hpp>
 
 #include <cstddef>
@@ -8,6 +9,7 @@
 #include <span>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace oxq::convert {
 
@@ -23,6 +25,7 @@ enum class CblErrorCode : std::uint8_t {
   invalid_record,
   invalid_comment,
   invalid_move_tree,
+  invalid_game_model,
 };
 
 struct CblError {
@@ -61,6 +64,19 @@ struct CblLibraryInfo {
   std::size_t trailing_bytes{};
 };
 
+struct CblReadOptions {
+  ConversionMode mode{ConversionMode::lenient};
+  CblReaderLimits limits;
+};
+
+struct CblReadResult {
+  CblLibraryInfo library;
+  std::vector<core::GameModel> games;
+  ConversionReport report;
+};
+
+using CblReadOutcome = std::variant<CblReadResult, CblError>;
+
 using CblInspectOutcome = std::variant<CblLibraryInfo, CblError>;
 
 // Inspects the v3 container, directory, and physical resource ranges without
@@ -68,5 +84,12 @@ using CblInspectOutcome = std::variant<CblLibraryInfo, CblError>;
 [[nodiscard]] CblInspectOutcome inspect_cbl(
     std::span<const std::byte> input,
     const CblReaderLimits& limits = {});
+
+// Converts every live CCB Record to an independent GameModel, ordered by the
+// directory display index. Structural failures return CblError. In strict
+// mode, semantic loss returns a result with report.rejected set and no games.
+[[nodiscard]] CblReadOutcome read_cbl(
+    std::span<const std::byte> input,
+    const CblReadOptions& options = {});
 
 }  // namespace oxq::convert
