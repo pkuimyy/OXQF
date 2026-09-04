@@ -21,6 +21,17 @@ ctest --preset release
 cmake --build --preset release --target oxq_writer_fingerprint package
 ```
 
+On Windows, use the explicit Visual Studio generator presets so the compiler baseline cannot be changed by `PATH` ordering:
+
+```powershell
+npm ci
+npm test
+cmake --preset windows-msvc
+cmake --build --preset windows-msvc-release
+ctest --preset windows-msvc-release
+cmake --build --preset windows-msvc-release --target oxq_writer_fingerprint package
+```
+
 Linux produces `OXQF-1.0.0-Linux-<architecture>.tar.gz` and Windows produces `OXQF-1.0.0-Windows-<architecture>.zip`. CPack writes a sibling `.sha256` file. CI retains both archives and compares `writer-fingerprint.txt` across Linux and Windows; each fingerprint is generated from the same 12 CBL baselines and is also required to match the committed semantic snapshot byte for byte.
 
 Run the bounded fuzz regression on Linux with:

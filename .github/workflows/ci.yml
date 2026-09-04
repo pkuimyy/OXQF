@@ -49,22 +49,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: cmake --preset dev
-      - run: cmake --build --preset dev
-      - run: ctest --preset dev
-      - name: Build and verify release candidate
+      - name: Build and test with MSVC Debug
         run: |
-          cmake --preset release
-          cmake --build --preset release
-          ctest --preset release
-          cmake --build --preset release --target oxq_writer_fingerprint package
+          cmake --preset windows-msvc
+          cmake --build --preset windows-msvc-debug
+          ctest --preset windows-msvc-debug
+      - name: Build and verify MSVC Release candidate
+        run: |
+          cmake --build --preset windows-msvc-release
+          ctest --preset windows-msvc-release
+          cmake --build --preset windows-msvc-release --target oxq_writer_fingerprint package
       - uses: actions/upload-artifact@v6
         with:
           name: release-windows
           path: |
-            build/release/writer-fingerprint.txt
-            build/release/OXQF-*.zip
-            build/release/OXQF-*.zip.sha256
+            build/windows-msvc/writer-fingerprint.txt
+            build/windows-msvc/OXQF-*.zip
+            build/windows-msvc/OXQF-*.zip.sha256
           if-no-files-found: error
 
   release-evidence:

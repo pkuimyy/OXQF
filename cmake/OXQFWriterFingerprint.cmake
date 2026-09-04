@@ -15,6 +15,13 @@ if(NOT result EQUAL 0)
   message(FATAL_ERROR "Writer baseline generator failed with exit code ${result}")
 endif()
 
+# Windows text-mode stdout translates the diagnostic JSON's LF separators to
+# CRLF. The OXQ bytes are hex-encoded inside that JSON, so normalize only the
+# transport line endings before comparing and hashing the Writer evidence.
+file(READ "${generated}" generated_text)
+string(REPLACE "\r\n" "\n" generated_text "${generated_text}")
+file(WRITE "${generated}" "${generated_text}")
+
 execute_process(
   COMMAND "${CMAKE_COMMAND}" -E compare_files "${generated}" "${OXQF_REFERENCE}"
   RESULT_VARIABLE comparison
