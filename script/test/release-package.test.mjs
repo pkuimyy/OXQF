@@ -9,6 +9,7 @@ import { assembleRelease, equalFingerprints } from "../assemble-release.mjs";
 import {
   auditReleaseFiles,
   parseArguments,
+  parseFingerprint,
   projectVersion,
   releasePlatform,
 } from "../package-release.mjs";
@@ -43,6 +44,13 @@ test("release command arguments reject ambiguous input", () => {
   });
   assert.throws(() => parseArguments(["--expected-version"]), /requires a value/);
   assert.throws(() => parseArguments(["--unknown"]), /unknown argument/);
+});
+
+test("Writer fingerprints are normalized across line-ending conventions", () => {
+  assert.deepEqual(
+    parseFingerprint(`sha256=${"a".repeat(64)}\r\nframed_bytes=42\r\n`),
+    { sha256: "a".repeat(64), framed_bytes: "42" },
+  );
 });
 
 const documentation = [

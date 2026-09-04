@@ -63,6 +63,12 @@ export function parseArguments(arguments_) {
   return options;
 }
 
+export function parseFingerprint(source) {
+  return Object.fromEntries(
+    source.trim().split(/\r?\n/).map((line) => line.split("=").map((value) => value.trim())),
+  );
+}
+
 function run(command, arguments_, options = {}) {
   console.log(`\n> ${command} ${arguments_.join(" ")}`);
   const result = spawnSync(command, arguments_, {
@@ -237,9 +243,7 @@ async function main() {
       platform: platform.name,
       architecture: platform.arch,
       compiler: platform.compiler,
-      writer_fingerprint: Object.fromEntries(
-        fingerprint.trim().split("\n").map((line) => line.split("=")),
-      ),
+      writer_fingerprint: parseFingerprint(fingerprint),
       artifacts,
     }, null, 2)}\n`,
   );
