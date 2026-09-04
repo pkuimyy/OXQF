@@ -374,6 +374,23 @@ endif()
 add_test(NAME cli.version COMMAND oxq --version)
 set_tests_properties(cli.version PROPERTIES PASS_REGULAR_EXPRESSION "^oxq ${PROJECT_VERSION}")
 
+add_executable(oxq_cli_test cli/cli_test.cpp)
+target_link_libraries(oxq_cli_test PRIVATE oxq_cli_support)
+target_include_directories(
+  oxq_cli_test
+  PRIVATE "${PROJECT_SOURCE_DIR}/src/cli"
+)
+target_compile_definitions(
+  oxq_cli_test
+  PRIVATE
+    OXQF_VECTOR_DIRECTORY="${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1"
+    OXQF_GOLD_BASELINE_DIRECTORY="${PROJECT_SOURCE_DIR}/test/gold-baseline"
+    OXQF_CLI_TEST_DIRECTORY="${PROJECT_BINARY_DIR}/cli-contract-test"
+)
+oxqf_set_project_warnings(oxq_cli_test)
+oxqf_enable_sanitizers(oxq_cli_test)
+add_test(NAME cli.contract-and-e2e COMMAND oxq_cli_test)
+
 if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
   set_tests_properties(
     core.header-smoke
@@ -402,6 +419,7 @@ if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
     convert.cbl-tree-writer
     convert.cbl-semantic-baseline
     cli.version
+    cli.contract-and-e2e
     PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
   )
 endif()

@@ -22,6 +22,22 @@ execute_process(
   COMMAND_ERROR_IS_FATAL ANY
 )
 
+if(WIN32)
+  set(path_separator ";")
+else()
+  set(path_separator ":")
+endif()
+set(ENV{PATH} "${stage_dir}/bin${path_separator}$ENV{PATH}")
+execute_process(
+  COMMAND oxq --version
+  OUTPUT_VARIABLE oxq_version
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  COMMAND_ERROR_IS_FATAL ANY
+)
+if(NOT oxq_version MATCHES "^oxq [0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR "Installed oxq returned unexpected version: ${oxq_version}")
+endif()
+
 execute_process(
   COMMAND
     "${CMAKE_COMMAND}"
