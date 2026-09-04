@@ -12,4 +12,8 @@ target_link_libraries(oxq PRIVATE oxq_cli_support)
 oxqf_set_project_warnings(oxq)
 oxqf_enable_sanitizers(oxq)
 
-install(TARGETS oxq RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(
+  TARGETS oxq
+  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  COMPONENT Runtime
+)

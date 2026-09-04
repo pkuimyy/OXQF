@@ -26,6 +26,9 @@ set(
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(MSVC AND NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(OXQFProjectOptions)
@@ -57,6 +60,7 @@ install(
   FILE OXQFTargets.cmake
   NAMESPACE OXQF::
   DESTINATION "${OXQF_INSTALL_CMAKEDIR}"
+  COMPONENT Development
 )
 
 install(
@@ -64,6 +68,7 @@ install(
     "${CMAKE_CURRENT_BINARY_DIR}/OXQFConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/OXQFConfigVersion.cmake"
   DESTINATION "${OXQF_INSTALL_CMAKEDIR}"
+  COMPONENT Development
 )
 
 install(
@@ -75,23 +80,28 @@ install(
     doc/mvp-acceptance.md
     doc/release.md
   DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF"
+  COMPONENT Documentation
 )
 install(
   DIRECTORY spec/
   DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF/spec"
+  COMPONENT Documentation
   FILES_MATCHING PATTERN "*.md"
 )
 install(
   DIRECTORY test/vectors/oxq-v1/
   DESTINATION "${CMAKE_INSTALL_DATADIR}/OXQF/vectors/oxq-v1"
+  COMPONENT Vectors
 )
 install(
   DIRECTORY test/gold-baseline/
   DESTINATION "${CMAKE_INSTALL_DATADIR}/OXQF/vectors/cbl-v3"
+  COMPONENT Vectors
 )
 install(
   FILES test/writer-compatibility/README.md
   DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF/writer-compatibility"
+  COMPONENT Documentation
 )
 
 set(CPACK_PACKAGE_NAME "OXQF")

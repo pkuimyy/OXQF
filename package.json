@@ -10,6 +10,8 @@
   "scripts": {
     "check": "node script/check-environment.mjs",
     "ci": "node script/ci.mjs",
+    "release:check": "node script/package-release.mjs --check",
+    "release:package": "node script/package-release.mjs",
     "test": "node --test script/test/*.test.mjs",
     "vectors:check": "node script/build-oxq-vectors.mjs",
     "vectors:write": "node script/build-oxq-vectors.mjs --write"
