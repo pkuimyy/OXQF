@@ -331,6 +331,17 @@ set_tests_properties(
 )
 
 add_executable(
+  oxq_convert_cbl_writer_compatibility_vectors
+  convert/cbl_writer_compatibility_vectors.cpp
+)
+target_link_libraries(
+  oxq_convert_cbl_writer_compatibility_vectors
+  PRIVATE OXQF::convert
+)
+oxqf_set_project_warnings(oxq_convert_cbl_writer_compatibility_vectors)
+oxqf_enable_sanitizers(oxq_convert_cbl_writer_compatibility_vectors)
+
+add_executable(
   oxq_convert_cbl_semantic_baseline_test
   convert/cbl_semantic_baseline_test.cpp
 )
