@@ -1,5 +1,12 @@
 @PACKAGE_INIT@
 
+# OXQF's compiler-labelled Windows SDK is built with the static MSVC runtime.
+# Apply the matching default to consumer targets created after find_package(),
+# while preserving an explicit choice made by the consuming project.
+if(MSVC AND NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/OXQFTargets.cmake")
 
 check_required_components(OXQF)

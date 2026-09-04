@@ -7,6 +7,7 @@ OXQF uses one repository-owned packaging implementation for local builds and Git
 - Linux CLI and SDK: GCC on Ubuntu 22.04 x86-64, C++20, glibc 2.35 or newer.
 - Windows CLI and SDK: MSVC/Visual Studio 2022 on Windows Server 2022 x86-64, C++20.
 - The Windows Release build uses the static MSVC runtime so the CLI does not require a separately installed Visual C++ Redistributable. The SDK archive is consequently labelled `msvc2022` and uses the same runtime choice.
+- The installed CMake package supplies that static-runtime choice as the default for MSVC consumer targets created after `find_package(OXQF)`, unless the consumer explicitly selected a runtime first.
 - Packaging scripts require Node.js 24.x and CMake 3.23 or newer. Installed products do not require Node.js.
 
 ## Local packaging
