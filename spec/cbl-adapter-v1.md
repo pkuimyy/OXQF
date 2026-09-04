@@ -104,3 +104,7 @@ game-uuid=<第 2 局 UUID>
 新建 Record 的未确认固定区和所有保留字节写零；版本写 `00 00 00 02`，没有可恢复来源值时 `RecordType=0`、`root_marker=0xffffffff`、Control 高位为零。Directory UUID 与 Record GUID 都从 `GameModel.uuid` 生成，任何固定 UTF-16LE 槽都使用最短合法编码、一个 NUL 和零填充。
 
 变化树按有序 child 列表执行非递归 DFS 前序编码；节点索引本身不写入 CBL。Writer 根据当前树重新计算 no-child、has-sibling、has-comment 三个结构位，只从合法且与当前节点数对齐的 `source_controls` 恢复高位。注释中的 CRLF 和 CR 在写入前规范化为 LF，并报告损失；多个注释的文本以两个 LF 连接成一个 CBL 注释块。
+
+完整 Library 由零初始化的目标缓冲区构造：Header 版本为 3，库 GUID 使用 Windows GUID 内存字节序，`0x10000..0x1043f` 的 Directory 前导区保持为零。每局按输入顺序占用连续物理槽，flags 为 `0x07`，`display_index` 等于从零开始的输入索引；Directory UUID 写成大写花括号文本，标题来自同局 Record 标题。资源按物理槽顺序紧随 Directory，每局独占向上取整到 4096 字节的连续块，`used_size` 是 Record 精确长度，块尾及未使用目录槽全部为零。文件在最后一个已分配块末尾结束，不附加尾随字节。
+
+公共 `write_cbl` 必须复用同一 preflight 结果；若报告被拒绝，返回带完整报告但空字节数组的结果。若可生成，则返回完整 CBL 字节、实际库 UUID、目录容量和同一份 `ConversionReport`。相同有序模型和选项必须产生逐字节相同的输出。

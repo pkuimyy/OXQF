@@ -5,6 +5,7 @@ target_sources(
   oxq_convert
   PRIVATE
     src/cbl/container.cpp
+    src/cbl/container_writer.cpp
     src/cbl/hash.cpp
     src/cbl/record.cpp
     src/cbl/record_writer.cpp

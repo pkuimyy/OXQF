@@ -1,6 +1,7 @@
 #include <oxq/convert/cbl_writer.hpp>
 
 #include "cbl/hash.hpp"
+#include "cbl/container_writer.hpp"
 
 #include <oxq/core/validation.hpp>
 
@@ -559,6 +560,27 @@ CblWritePreflightOutcome preflight_cbl_write(
   state.plan.report.converted_game_count =
       state.plan.report.rejected ? 0U : games.size();
   return state.plan;
+}
+
+CblWriteOutcome write_cbl(std::span<const core::GameModel> games,
+                          const CblWriteOptions& options) {
+  auto preflight = preflight_cbl_write(games, options);
+  if (std::holds_alternative<CblWriteError>(preflight)) {
+    return std::get<CblWriteError>(std::move(preflight));
+  }
+  auto plan = std::get<CblWritePlan>(std::move(preflight));
+  CblWriteResult result;
+  result.library_uuid = plan.library_uuid;
+  result.directory_capacity = plan.directory_capacity;
+  result.report = std::move(plan.report);
+  if (!result.report.rejected) {
+    auto encoded = detail::encode_cbl_container(games, options, plan);
+    if (std::holds_alternative<CblWriteError>(encoded)) {
+      return std::get<CblWriteError>(std::move(encoded));
+    }
+    result.bytes = std::get<std::vector<std::byte>>(std::move(encoded));
+  }
+  return result;
 }
 
 }  // namespace oxq::convert
