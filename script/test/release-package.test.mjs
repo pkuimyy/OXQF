@@ -65,7 +65,10 @@ test("CLI and SDK archive contracts are independently audited", () => {
     "share/OXQF/vectors/cbl-v3/SHA256SUMS",
   ];
   assert.doesNotThrow(() => auditReleaseFiles("sdk", sdk, false));
-  assert.throws(() => auditReleaseFiles("cli", [...documentation, "bin/oxq", "lib/a"]), /SDK/);
+  assert.throws(
+    () => auditReleaseFiles("cli", [...documentation, "bin/oxq", "lib/a"], false),
+    /SDK/,
+  );
   assert.throws(() => auditReleaseFiles("sdk", [...sdk, "raw/private.CBL"], false), /forbidden/);
 });
 
