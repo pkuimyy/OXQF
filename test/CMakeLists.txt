@@ -315,6 +315,22 @@ set_tests_properties(
 )
 
 add_executable(
+  oxq_convert_cbl_writer_limits_test
+  convert/cbl_writer_limits_test.cpp
+)
+target_link_libraries(oxq_convert_cbl_writer_limits_test PRIVATE OXQF::convert)
+oxqf_set_project_warnings(oxq_convert_cbl_writer_limits_test)
+oxqf_enable_sanitizers(oxq_convert_cbl_writer_limits_test)
+add_test(
+  NAME convert.cbl-writer-limits
+  COMMAND oxq_convert_cbl_writer_limits_test
+)
+set_tests_properties(
+  convert.cbl-writer-limits
+  PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
+)
+
+add_executable(
   oxq_convert_cbl_semantic_baseline_test
   convert/cbl_semantic_baseline_test.cpp
 )
