@@ -5,7 +5,7 @@ OXQF 1.0.0 is the MVP release baseline. A release candidate is accepted only fro
 ## Supported build baseline
 
 - Linux: GCC and Clang, C++20, CMake 3.23 or newer, Ninja.
-- Windows: MSVC on the current GitHub-hosted `windows-latest` image, C++20, CMake and Ninja.
+- Windows: MSVC/Visual Studio 2022 on the GitHub-hosted `windows-2022` image, C++20 and CMake.
 - Development scripts: Node.js 24.x. Installed libraries and `oxq` do not require Node.js.
 
 ## Reproduce a release candidate

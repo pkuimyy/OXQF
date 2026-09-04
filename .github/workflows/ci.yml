@@ -40,7 +40,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -49,16 +49,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Build and test with MSVC Debug
-        run: |
-          cmake --preset windows-msvc
-          cmake --build --preset windows-msvc-debug
-          ctest --preset windows-msvc-debug
-      - name: Build and verify MSVC Release candidate
-        run: |
-          cmake --build --preset windows-msvc-release
-          ctest --preset windows-msvc-release
-          cmake --build --preset windows-msvc-release --target oxq_writer_fingerprint package
+      - name: Configure Visual Studio 2022
+        run: cmake --preset windows-msvc
+      - name: Build with MSVC Debug
+        run: cmake --build --preset windows-msvc-debug
+      - name: Test with MSVC Debug
+        run: ctest --preset windows-msvc-debug
+      - name: Build with MSVC Release
+        run: cmake --build --preset windows-msvc-release
+      - name: Test with MSVC Release
+        run: ctest --preset windows-msvc-release
+      - name: Package and fingerprint MSVC Release
+        run: cmake --build --preset windows-msvc-release --target oxq_writer_fingerprint package
       - uses: actions/upload-artifact@v6
         with:
           name: release-windows
