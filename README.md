@@ -6,7 +6,7 @@ OXQF is the reference implementation workspace for the OXQ single-game format. T
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 
-The source tree implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
+Version 1.0.0 implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
 
 ## Development prerequisites
 
@@ -50,12 +50,25 @@ npm run ci
 
 The CTest suite installs the project into an isolated staging prefix and builds a separate consumer with `find_package(OXQF CONFIG REQUIRED)`.
 
+The release gate also runs a bounded libFuzzer regression, builds clean Linux and Windows archives, and compares the SHA-256 of canonical Writer output produced on both platforms.
+
 ## Install
 
 ```bash
 cmake --install build/dev --prefix build/install
 build/install/bin/oxq --version
 ```
+
+To create the platform archive used by CI:
+
+```bash
+cmake --preset release
+cmake --build --preset release
+ctest --preset release
+cmake --build --preset release --target oxq_writer_fingerprint package
+```
+
+See [the release guide](doc/release.md) for archive contents, checksums, and the clean-checkout checklist. The evidence mapping for all twelve MVP acceptance criteria is in [the MVP acceptance report](doc/mvp-acceptance.md).
 
 ## Command-line examples
 

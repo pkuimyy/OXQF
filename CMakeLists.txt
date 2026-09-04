@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 project(
   OXQF
-  VERSION 0.1.3
+  VERSION 1.0.0
   DESCRIPTION "Open Xiangqi Format reference implementation"
   LANGUAGES CXX
 )
@@ -66,4 +66,46 @@ install(
   DESTINATION "${OXQF_INSTALL_CMAKEDIR}"
 )
 
-install(FILES LICENSE DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF")
+install(
+  FILES
+    README.md
+    CHANGELOG.md
+    LICENSE
+    doc/cli.md
+    doc/mvp-acceptance.md
+    doc/release.md
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF"
+)
+install(
+  DIRECTORY spec/
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF/spec"
+  FILES_MATCHING PATTERN "*.md"
+)
+install(
+  DIRECTORY test/vectors/oxq-v1/
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/OXQF/vectors/oxq-v1"
+)
+install(
+  DIRECTORY test/gold-baseline/
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/OXQF/vectors/cbl-v3"
+)
+install(
+  FILES test/writer-compatibility/README.md
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF/writer-compatibility"
+)
+
+set(CPACK_PACKAGE_NAME "OXQF")
+set(CPACK_PACKAGE_VENDOR "Open Xiangqi Format contributors")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OXQ v1 reference libraries and command-line tools")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_FILE_NAME
+    "OXQF-${PROJECT_VERSION}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+set(CPACK_PACKAGE_CHECKSUM SHA256)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY ON)
+if(WIN32)
+  set(CPACK_GENERATOR ZIP)
+else()
+  set(CPACK_GENERATOR TGZ)
+endif()
+include(CPack)

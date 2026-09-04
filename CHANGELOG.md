@@ -1,0 +1,10 @@
+# Changelog
+
+## 1.0.0 — 2026-09-04
+
+- Freeze and publish the independently implementable OXQ v1.0 specification and test vectors.
+- Add the C++20 `oxq-core` model, Reader, Writer, Validator, deterministic serialization, structured failures, and resource limits.
+- Add the `oxq-convert` CBL v3 Reader and new-file Writer with structured loss reporting and strict mode.
+- Add the `oxq` CLI with `convert`, `inspect`, `validate`, and `dump` commands.
+- Add independent-reader, malformed-input, sanitizer, bounded-fuzz, install-consumer, Linux GCC/Clang, Windows MSVC, and cross-platform Writer-byte gates.
+- Record successful CBL Writer interoperability with Xiangqi Bridge 3.0 beta4 (program version 3.0.0.4).
