@@ -1,65 +1,99 @@
 # OXQF 1.0.0 release guide
 
-OXQF 1.0.0 is the MVP release baseline. A release candidate is accepted only from a clean checkout whose GitHub Actions `linux`, `windows`, and `release-evidence` jobs all pass for the same commit.
+OXQF uses one repository-owned packaging implementation for local builds and GitHub Releases. GitHub Actions invokes the same Node.js and CMake commands; it does not maintain a second archive layout.
 
-## Supported build baseline
+## Supported binary baseline
 
-- Linux: GCC and Clang, C++20, CMake 3.23 or newer, Ninja.
-- Windows: MSVC/Visual Studio 2022 on the GitHub-hosted `windows-2022` image, C++20 and CMake.
-- Development scripts: Node.js 24.x. Installed libraries and `oxq` do not require Node.js.
+- Linux CLI and SDK: GCC on Ubuntu 22.04 x86-64, C++20, glibc 2.35 or newer.
+- Windows CLI and SDK: MSVC/Visual Studio 2022 on Windows Server 2022 x86-64, C++20.
+- The Windows Release build uses the static MSVC runtime so the CLI does not require a separately installed Visual C++ Redistributable. The SDK archive is consequently labelled `msvc2022` and uses the same runtime choice.
+- Packaging scripts require Node.js 24.x and CMake 3.23 or newer. Installed products do not require Node.js.
 
-## Reproduce a release candidate
+## Local packaging
 
-From a fresh checkout:
+Run from a clean checkout:
 
 ```bash
 npm ci
-npm test
-cmake --preset release
-cmake --build --preset release
-ctest --preset release
-cmake --build --preset release --target oxq_writer_fingerprint package
+npm run release:check
+npm run release:package
 ```
 
-On Windows, use the explicit Visual Studio generator presets so the compiler baseline cannot be changed by `PATH` ordering:
+Both commands start with a fresh `build/release-package` tree and perform:
 
-```powershell
-npm ci
-npm test
-cmake --preset windows-msvc
-cmake --build --preset windows-msvc-release
-ctest --preset windows-msvc-release
-cmake --build --preset windows-msvc-release --target oxq_writer_fingerprint package
+1. CMake and npm version agreement checks;
+2. a Release configure and complete build;
+3. all CTest tests, including the isolated installed consumer;
+4. canonical OXQ Writer fingerprint generation;
+5. separate CMake component installs for the CLI and SDK;
+6. required-file and forbidden-private-path audits.
+
+`release:check` stops after auditing both staging trees. `release:package` additionally recreates `out/release/` and writes the two platform archives, a machine-readable manifest, and a platform SHA-256 file. A dirty Git working tree is rejected; `--allow-dirty` exists only for developing the packaging code itself.
+
+Linux output:
+
+```text
+oxq-1.0.0-linux-x86_64.tar.gz
+oxq-sdk-1.0.0-linux-gcc-x86_64.tar.gz
+release-manifest-linux-x86_64.json
+SHA256SUMS-linux-x86_64
 ```
 
-Linux produces `OXQF-1.0.0-Linux-<architecture>.tar.gz` and Windows produces `OXQF-1.0.0-Windows-<architecture>.zip`. CPack writes a sibling `.sha256` file. CI retains both archives and compares `writer-fingerprint.txt` across Linux and Windows. Each fingerprint is calculated directly over the canonical OXQ byte arrays generated from the same 12 CBL baselines, with an eight-byte little-endian length before each game; the generator also requires the complete diagnostic semantic snapshot to match the committed baseline.
+Windows output:
 
-Run the bounded fuzz regression on Linux with:
+```text
+oxq-1.0.0-windows-x86_64.zip
+oxq-sdk-1.0.0-windows-msvc2022-x86_64.zip
+release-manifest-windows-x86_64.json
+SHA256SUMS-windows-x86_64
+```
+
+## Archive boundaries
+
+The CLI archive contains only the `oxq` executable, README, changelog, license, specifications, CLI contract, acceptance report, and compatibility record.
+
+The SDK archive contains `oxq-core`, `oxq-convert`, public C++ headers, the relocatable `OXQF` CMake package, the same documentation, and project-authored OXQ/CBL test vectors. It intentionally does not contain the CLI executable.
+
+Both archive audits reject private paths and assets such as `.codex`, `raw`, build trees, dependency trees, credentials, and the Xiangqi Bridge distribution archive. Third-party corpus files are never installed or packaged.
+
+## GitHub Release publication
+
+`.github/workflows/release.yml` accepts only an existing `vMAJOR.MINOR.PATCH` tag. The tag version must exactly match `PROJECT_VERSION` and `package.json`.
+
+For each tag, the workflow:
+
+1. checks out the exact tag independently on Ubuntu 22.04 and Windows 2022;
+2. runs `npm run release:package` on both platforms;
+3. creates GitHub build-provenance attestations for all four binary archives;
+4. verifies archive hashes, versions, and cross-platform Writer fingerprints;
+5. creates a combined `release-manifest.json` and `SHA256SUMS`;
+6. publishes one GitHub Release containing four binary archives, both platform manifests, the combined manifest, and checksums.
+
+GitHub automatically exposes source ZIP and tar.gz downloads for the tag; they remain secondary to the explicit CLI and SDK assets. The workflow refuses to replace an existing release and never creates a tag implicitly.
+
+Maintainer sequence:
 
 ```bash
-cmake --preset fuzz
-cmake --build --preset fuzz --target oxq_core_reader_fuzz
-ctest --test-dir build/fuzz -R core.reader-fuzz-smoke --output-on-failure
+git status --short
+git tag -s v1.0.0 -m "OXQF 1.0.0"
+git push origin v1.0.0
 ```
 
-## Archive contents
+If signed tags are not configured, use an annotated tag only after explicitly accepting that reduced provenance. The workflow may also be manually dispatched for an existing tag; it still verifies that tag and refuses a version mismatch.
 
-The archive is generated solely from CMake install rules and contains:
+After download, verify an archive with:
 
-- `oxq`, `oxq-core`, and `oxq-convert`;
-- public C++ headers and the `OXQF` CMake package;
-- the OXQ v1.0 and CBL adapter specifications;
-- the CLI contract, changelog, license, and compatibility record;
-- hand-authored OXQ vectors and project-authored CBL golden baselines.
-
-The install-consumer test verifies the public headers, both libraries, CMake package, executable, documentation, and vectors in an isolated prefix. It rejects private paths and assets such as `.codex`, `raw`, secrets, and the Xiangqi Bridge distribution archive. Third-party corpus files are not installed or packaged.
+```bash
+sha256sum --check SHA256SUMS
+gh attestation verify oxq-1.0.0-linux-x86_64.tar.gz --repo pkuimyy/OXQF
+```
 
 ## Publication checklist
 
-1. Require a clean working tree and a successful CI run for the exact commit.
-2. Download both release archives and their CPack-generated SHA-256 files.
-3. Confirm `release-evidence` compared the Linux and Windows Writer fingerprints successfully.
-4. Confirm `oxq --version` prints `oxq 1.0.0` from each extracted archive.
-5. Confirm the independent consumer builds against each extracted archive using `find_package(OXQF CONFIG REQUIRED)`.
-6. Publish the archives, checksums, `CHANGELOG.md`, and a link to `doc/mvp-acceptance.md` together.
-7. Create a signed `v1.0.0` tag only after the artifacts above are approved. Tagging and creating a hosted release are intentionally separate maintainer actions.
+1. Require M7 CI success for the exact commit.
+2. Confirm the version appears in `CMakeLists.txt`, `package.json`, and `CHANGELOG.md`.
+3. Create and push a signed version tag.
+4. Require both release build jobs and the publish job to pass.
+5. Download the CLI archives and run `oxq --version` on both platforms.
+6. Verify `SHA256SUMS` and the GitHub attestations.
+7. Enable GitHub immutable releases in repository settings when operationally appropriate.

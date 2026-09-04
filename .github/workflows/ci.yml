@@ -25,18 +25,11 @@ jobs:
           cmake --build --preset fuzz --target oxq_core_reader_fuzz
           ctest --test-dir build/fuzz -R core.reader-fuzz-smoke --output-on-failure
       - name: Build and verify release candidate
-        run: |
-          cmake --preset release
-          cmake --build --preset release
-          ctest --preset release
-          cmake --build --preset release --target oxq_writer_fingerprint package
-      - uses: actions/upload-artifact@v6
+        run: npm run release:package
+      - uses: actions/upload-artifact@v7
         with:
           name: release-linux
-          path: |
-            build/release/writer-fingerprint.txt
-            build/release/OXQF-*.tar.gz
-            build/release/OXQF-*.tar.gz.sha256
+          path: out/release/*
           if-no-files-found: error
 
   windows:
@@ -55,19 +48,12 @@ jobs:
         run: cmake --build --preset windows-msvc-debug
       - name: Test with MSVC Debug
         run: ctest --preset windows-msvc-debug
-      - name: Build with MSVC Release
-        run: cmake --build --preset windows-msvc-release
-      - name: Test with MSVC Release
-        run: ctest --preset windows-msvc-release
-      - name: Package and fingerprint MSVC Release
-        run: cmake --build --preset windows-msvc-release --target oxq_writer_fingerprint package
-      - uses: actions/upload-artifact@v6
+      - name: Build and verify release candidate
+        run: npm run release:package
+      - uses: actions/upload-artifact@v7
         with:
           name: release-windows
-          path: |
-            build/windows-msvc/writer-fingerprint.txt
-            build/windows-msvc/OXQF-*.zip
-            build/windows-msvc/OXQF-*.zip.sha256
+          path: out/release/*
           if-no-files-found: error
 
   release-evidence:
@@ -75,17 +61,17 @@ jobs:
     needs: [linux, windows]
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/download-artifact@v7
         with:
           name: release-linux
-          path: artifacts/linux
-      - uses: actions/download-artifact@v6
+          path: artifacts/release
+      - uses: actions/download-artifact@v7
         with:
           name: release-windows
-          path: artifacts/windows
-      - name: Compare Linux and Windows OXQ Writer bytes
-        run: >-
-          cmake
-          -DOXQF_LINUX_FINGERPRINT=artifacts/linux/writer-fingerprint.txt
-          -DOXQF_WINDOWS_FINGERPRINT=artifacts/windows/writer-fingerprint.txt
-          -P cmake/OXQFCompareFingerprints.cmake
+          path: artifacts/release
+      - name: Verify and assemble cross-platform release evidence
+        run: node script/assemble-release.mjs artifacts/release

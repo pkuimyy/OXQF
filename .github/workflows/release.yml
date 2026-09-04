@@ -1,0 +1,113 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vMAJOR.MINOR.PATCH tag to publish
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    runs-on: ubuntu-22.04
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release tag must be vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            artifact: release-linux
+            archives: out/release/*.tar.gz
+          - runner: windows-2022
+            artifact: release-windows
+            archives: out/release/*.zip
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.metadata.outputs.tag }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install Linux build tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ninja-build
+      - run: npm ci
+      - name: Build, test, and package binary distributions
+        run: npm run release:package -- --expected-version ${{ needs.metadata.outputs.version }}
+      - name: Attest binary archives
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ matrix.archives }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.archives }}
+            out/release/release-manifest-*.json
+          if-no-files-found: error
+
+  publish:
+    needs: [metadata, build]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.metadata.outputs.tag }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: release-*
+          path: out/release
+          merge-multiple: true
+      - name: Verify and assemble release assets
+        run: node script/assemble-release.mjs out/release ${{ needs.metadata.outputs.version }}
+      - name: Publish immutable-input GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
+        run: >-
+          gh release create "$RELEASE_TAG"
+          out/release/*
+          --repo "$GITHUB_REPOSITORY"
+          --verify-tag
+          --latest
+          --title "OXQF $RELEASE_VERSION"
+          --notes "Binary-first OXQF $RELEASE_VERSION release. See CHANGELOG.md and the attached release-manifest.json. Verify downloads with SHA256SUMS or GitHub artifact attestations."

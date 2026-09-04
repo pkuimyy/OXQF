@@ -8,3 +8,4 @@
 - Add the `oxq` CLI with `convert`, `inspect`, `validate`, and `dump` commands.
 - Add independent-reader, malformed-input, sanitizer, bounded-fuzz, install-consumer, Linux GCC/Clang, Windows MSVC, and cross-platform Writer-byte gates.
 - Record successful CBL Writer interoperability with Xiangqi Bridge 3.0 beta4 (program version 3.0.0.4).
+- Automate binary-first CLI and compiler-labelled SDK archives, release manifests, checksums, provenance attestations, and tag-driven GitHub Releases.

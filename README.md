@@ -59,16 +59,15 @@ cmake --install build/dev --prefix build/install
 build/install/bin/oxq --version
 ```
 
-To create the platform archive used by CI:
+To reproduce the binary-first release packages locally from a clean checkout:
 
 ```bash
-cmake --preset release
-cmake --build --preset release
-ctest --preset release
-cmake --build --preset release --target oxq_writer_fingerprint package
+npm run release:check
+npm run release:package
+ls out/release/
 ```
 
-See [the release guide](doc/release.md) for archive contents, checksums, and the clean-checkout checklist. The evidence mapping for all twelve MVP acceptance criteria is in [the MVP acceptance report](doc/mvp-acceptance.md).
+The packaging command creates a small CLI archive and a compiler-labelled SDK archive, audits their contents, and writes manifests plus SHA-256 checksums. See [the release guide](doc/release.md) for archive contents, tag publication, and the clean-checkout checklist. The evidence mapping for all twelve MVP acceptance criteria is in [the MVP acceptance report](doc/mvp-acceptance.md).
 
 ## Command-line examples
 
