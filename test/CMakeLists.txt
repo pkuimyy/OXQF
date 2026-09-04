@@ -426,6 +426,19 @@ endif()
 
 find_program(OXQF_NODE_EXECUTABLE NAMES node REQUIRED)
 add_test(
+  NAME cli.json-and-thin-wrapper
+  COMMAND
+    "${OXQF_NODE_EXECUTABLE}"
+    "${PROJECT_SOURCE_DIR}/test/cli/process_test.mjs"
+    "${PROJECT_BINARY_DIR}/cli-contract-test/json"
+    "${PROJECT_SOURCE_DIR}"
+)
+set_tests_properties(
+  cli.json-and-thin-wrapper
+  PROPERTIES DEPENDS cli.contract-and-e2e
+)
+
+add_test(
   NAME tooling.node-environment
   COMMAND "${OXQF_NODE_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/script/check-environment.mjs"
 )

@@ -29,7 +29,9 @@ else()
 endif()
 set(ENV{PATH} "${stage_dir}/bin${path_separator}$ENV{PATH}")
 execute_process(
-  COMMAND oxq --version
+  COMMAND
+    "${CMAKE_COMMAND}" -E env "ASAN_OPTIONS=detect_leaks=0"
+    oxq --version
   OUTPUT_VARIABLE oxq_version
   OUTPUT_STRIP_TRAILING_WHITESPACE
   COMMAND_ERROR_IS_FATAL ANY

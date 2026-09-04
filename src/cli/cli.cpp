@@ -91,6 +91,11 @@ void print_command_help(std::string_view command, std::ostream& output) {
   }
 }
 
+[[nodiscard]] bool known_command(std::string_view command) noexcept {
+  return command == "convert" || command == "inspect" ||
+         command == "validate" || command == "dump";
+}
+
 [[nodiscard]] Format parse_format(std::string_view value) noexcept {
   if (value == "oxq") {
     return Format::oxq;
@@ -780,13 +785,21 @@ int run(int argc, char* argv[], std::ostream& output, std::ostream& error) {
     return exit_code(ExitCode::success);
   }
   const std::string_view command{argv[1]};
-  if (command == "--help" || command == "help") {
-    if (argc == 3) {
+  if (command == "--help") {
+    if (argc != 2) {
+      error << "oxq --help: no arguments are accepted\n";
+      return exit_code(ExitCode::usage);
+    }
+    print_usage(output);
+    return exit_code(ExitCode::success);
+  }
+  if (command == "help") {
+    if (argc == 3 && known_command(argv[2])) {
       print_command_help(argv[2], output);
       return exit_code(ExitCode::success);
     }
     if (argc != 2) {
-      error << "oxq help: expected at most one command\n";
+      error << "oxq help: expected one of convert, inspect, validate, or dump\n";
       return exit_code(ExitCode::usage);
     }
     print_usage(output);
