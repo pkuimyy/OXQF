@@ -102,3 +102,5 @@ game-uuid=<第 2 局 UUID>
 棋局顺序参与身份；作者、时间和输出路径不参与。默认目录容量为 `max(128, game_count)`，调用方可提高最小容量；Writer 不生成墓碑、非棋局资源或随机填充。
 
 新建 Record 的未确认固定区和所有保留字节写零；版本写 `00 00 00 02`，没有可恢复来源值时 `RecordType=0`、`root_marker=0xffffffff`、Control 高位为零。Directory UUID 与 Record GUID 都从 `GameModel.uuid` 生成，任何固定 UTF-16LE 槽都使用最短合法编码、一个 NUL 和零填充。
+
+变化树按有序 child 列表执行非递归 DFS 前序编码；节点索引本身不写入 CBL。Writer 根据当前树重新计算 no-child、has-sibling、has-comment 三个结构位，只从合法且与当前节点数对齐的 `source_controls` 恢复高位。注释中的 CRLF 和 CR 在写入前规范化为 LF，并报告损失；多个注释的文本以两个 LF 连接成一个 CBL 注释块。

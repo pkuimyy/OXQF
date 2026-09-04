@@ -367,11 +367,46 @@ void check_metadata(PreflightState& state, const core::GameModel& game,
   for (std::size_t index = 0; index < node.annotations.size(); ++index) {
     const auto& annotation = node.annotations[index];
     if (index != 0) {
-      units += 2;
+      if (!checked_add(units, 2U, units)) {
+        diagnostic(state, ConversionSeverity::loss,
+                   ConversionCode::cbl_write_text_too_long, game_index,
+                   node_index, "annotations",
+                   "combined CBL comment size overflows size_t");
+        state.fatal = true;
+        return 0;
+      }
     }
     const auto length = utf16_length(annotation.text);
     if (length.valid) {
-      units += length.units;
+      std::size_t crlf_pairs = 0;
+      bool has_carriage_return = false;
+      for (std::size_t cursor = 0; cursor < annotation.text.size(); ++cursor) {
+        if (annotation.text[cursor] != '\r') {
+          continue;
+        }
+        has_carriage_return = true;
+        if (cursor + 1U < annotation.text.size() &&
+            annotation.text[cursor + 1U] == '\n') {
+          ++crlf_pairs;
+          ++cursor;
+        }
+      }
+      if (!checked_add(units, length.units - crlf_pairs, units)) {
+        diagnostic(state, ConversionSeverity::loss,
+                   ConversionCode::cbl_write_text_too_long, game_index,
+                   node_index, "annotations",
+                   "combined CBL comment size overflows size_t");
+        state.fatal = true;
+        return 0;
+      }
+      if (has_carriage_return) {
+        diagnostic(state, ConversionSeverity::loss,
+                   ConversionCode::cbl_write_annotation_normalized, game_index,
+                   node_index,
+                   "move_tree.nodes[" + std::to_string(node_index) +
+                       "].annotations[" + std::to_string(index) + "].text",
+                   "CBL comment newlines are normalized to LF");
+      }
     }
     if (annotation.kind != core::AnnotationKind::comment || annotation.before_move ||
         annotation.author.has_value() || annotation.language.has_value()) {
