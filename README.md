@@ -6,7 +6,7 @@ OXQF is the reference implementation workspace for the OXQ single-game format. T
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 
-The current source tree is an engineering skeleton. The frozen OXQ v1.0 specification is published at [spec/oxq-v1.md](spec/oxq-v1.md); implementation design documents are maintained under `.codex` during development.
+The source tree implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
 
 ## Development prerequisites
 
@@ -56,6 +56,25 @@ The CTest suite installs the project into an isolated staging prefix and builds 
 cmake --install build/dev --prefix build/install
 build/install/bin/oxq --version
 ```
+
+## Command-line examples
+
+```bash
+# Split one CBL library into UUID-named OXQ files.
+oxq convert source.CBL --output converted/
+
+# Combine ordered OXQ inputs into one new CBL library.
+oxq convert game-1.oxq game-2.oxq --output exported.CBL
+
+# Inspect, validate, or emit canonical diagnostic JSON.
+oxq inspect --json source.CBL
+oxq validate --json game-1.oxq
+oxq dump game-1.oxq
+```
+
+`oxq convert` never overwrites an existing target. Add `--strict` to reject
+any conversion with semantic loss. See the CLI contract for exit codes,
+machine-readable output fields, and batch behavior.
 
 ## License
 
