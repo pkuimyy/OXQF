@@ -1,6 +1,6 @@
 {
   "name": "open-xiangqi-format-dev",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "Development scripts for the Open Xiangqi Format project",

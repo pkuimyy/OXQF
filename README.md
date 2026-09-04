@@ -6,7 +6,7 @@ OXQF is the reference implementation workspace for the OXQ single-game format. T
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 
-Version 1.0.1 implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
+Version 1.0.0 implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
 
 ## Development prerequisites
 

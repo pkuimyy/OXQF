@@ -1,4 +1,4 @@
-# OXQF 1.0.1 release guide
+# OXQF 1.0.0 release guide
 
 OXQF publishes one complete developer distribution for each supported platform and
 toolchain. The same repository-owned packaging implementation is used locally,
@@ -20,8 +20,8 @@ in CI, and by the tag-driven GitHub Release workflow.
 Release assets are deliberately limited to:
 
 ```text
-oxq-1.0.1-linux-gcc-x86_64.tar.gz
-oxq-1.0.1-windows-msvc2022-x86_64.zip
+oxq-1.0.0-linux-gcc-x86_64.tar.gz
+oxq-1.0.0-windows-msvc2022-x86_64.zip
 SHA256SUMS
 ```
 
@@ -31,7 +31,7 @@ specifications, project-authored test vectors, and an internal manifest. There
 is no separate CLI or SDK archive.
 
 ```text
-oxq-1.0.1-linux-gcc-x86_64/
+oxq-1.0.0-linux-gcc-x86_64/
 ├── bin/oxq
 ├── include/oxq/
 ├── lib/
@@ -90,8 +90,8 @@ Maintainer sequence:
 
 ```bash
 git status --short
-git tag -s v1.0.1 -m "OXQF 1.0.1"
-git push origin v1.0.1
+git tag -s v1.0.0 -m "OXQF 1.0.0"
+git push origin v1.0.0
 ```
 
 If signed tags are unavailable, create an annotated tag only after explicitly
@@ -102,5 +102,5 @@ After download, verify an archive with:
 
 ```bash
 sha256sum --check SHA256SUMS
-gh attestation verify oxq-1.0.1-linux-gcc-x86_64.tar.gz --repo pkuimyy/OXQF
+gh attestation verify oxq-1.0.0-linux-gcc-x86_64.tar.gz --repo pkuimyy/OXQF
 ```

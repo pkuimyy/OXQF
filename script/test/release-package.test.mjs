@@ -40,12 +40,12 @@ test("release platform names are stable", () => {
 
 test("one complete developer distribution is named per platform", () => {
   assert.equal(
-    distributionName("1.0.1", releasePlatform("linux", "x64")),
-    "oxq-1.0.1-linux-gcc-x86_64",
+    distributionName("1.0.0", releasePlatform("linux", "x64")),
+    "oxq-1.0.0-linux-gcc-x86_64",
   );
   assert.equal(
-    distributionName("1.0.1", releasePlatform("win32", "x64")),
-    "oxq-1.0.1-windows-msvc2022-x86_64",
+    distributionName("1.0.0", releasePlatform("win32", "x64")),
+    "oxq-1.0.0-windows-msvc2022-x86_64",
   );
 });
 
@@ -100,16 +100,16 @@ test("complete developer distribution contract is audited", () => {
 });
 
 test("internal distribution manifest records ABI and runtime contracts", () => {
-  assert.deepEqual(distributionManifest("1.0.1", releasePlatform("linux", "x64")), {
+  assert.deepEqual(distributionManifest("1.0.0", releasePlatform("linux", "x64")), {
     name: "OXQF",
-    version: "1.0.1",
+    version: "1.0.0",
     format_version: "1",
     platform: { os: "linux", arch: "x86_64", toolchain: "gcc" },
     components: ["oxq-cli", "oxq-core", "oxq-convert", "cmake-package", "test-vectors", "documentation"],
     runtime: { cpp_standard: "C++20", glibc_min: "2.35" },
   });
   assert.equal(
-    distributionManifest("1.0.1", releasePlatform("win32", "x64")).platform.msvc_runtime,
+    distributionManifest("1.0.0", releasePlatform("win32", "x64")).platform.msvc_runtime,
     "static",
   );
 });

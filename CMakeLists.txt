@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 project(
   OXQF
-  VERSION 1.0.1
+  VERSION 1.0.0
   DESCRIPTION "Open Xiangqi Format reference implementation"
   LANGUAGES CXX
 )
