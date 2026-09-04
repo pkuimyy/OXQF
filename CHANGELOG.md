@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 — Unreleased
+
+- Replace separate CLI and SDK release archives with one complete developer distribution per supported platform and toolchain.
+- Place a self-describing distribution manifest inside each archive and retain platform manifests only as CI evidence.
+
 ## 1.0.0 — 2026-09-04
 
 - Freeze and publish the independently implementable OXQ v1.0 specification and test vectors.

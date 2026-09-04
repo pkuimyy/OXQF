@@ -1,14 +1,55 @@
-# OXQF 1.0.0 release guide
+# OXQF 1.0.1 release guide
 
-OXQF uses one repository-owned packaging implementation for local builds and GitHub Releases. GitHub Actions invokes the same Node.js and CMake commands; it does not maintain a second archive layout.
+OXQF publishes one complete developer distribution for each supported platform and
+toolchain. The same repository-owned packaging implementation is used locally,
+in CI, and by the tag-driven GitHub Release workflow.
 
 ## Supported binary baseline
 
-- Linux CLI and SDK: GCC on Ubuntu 22.04 x86-64, C++20, glibc 2.35 or newer.
-- Windows CLI and SDK: MSVC/Visual Studio 2022 on Windows Server 2022 x86-64, C++20.
-- The Windows Release build uses the static MSVC runtime so the CLI does not require a separately installed Visual C++ Redistributable. The SDK archive is consequently labelled `msvc2022` and uses the same runtime choice.
-- The installed CMake package supplies that static-runtime choice as the default for MSVC consumer targets created after `find_package(OXQF)`, unless the consumer explicitly selected a runtime first.
-- Packaging scripts require Node.js 24.x and CMake 3.23 or newer. Installed products do not require Node.js.
+- Linux: GCC on Ubuntu 22.04 x86-64, C++20, glibc 2.35 or newer.
+- Windows: MSVC/Visual Studio 2022 on Windows Server 2022 x86-64, C++20, with
+  the static MSVC runtime.
+- The installed `OXQF` CMake package supplies the matching static runtime as a
+  default to MSVC consumer targets created after `find_package(OXQF)`, unless a
+  consuming project explicitly chose a runtime first.
+- Packaging requires Node.js 24.x and CMake 3.23 or newer. Installed products
+  do not require Node.js.
+
+## One distribution per platform
+
+Release assets are deliberately limited to:
+
+```text
+oxq-1.0.1-linux-gcc-x86_64.tar.gz
+oxq-1.0.1-windows-msvc2022-x86_64.zip
+SHA256SUMS
+```
+
+Each archive contains the `oxq` CLI, `oxq-core` and `oxq-convert` static
+libraries, public headers, the relocatable `OXQF` CMake package, documentation,
+specifications, project-authored test vectors, and an internal manifest. There
+is no separate CLI or SDK archive.
+
+```text
+oxq-1.0.1-linux-gcc-x86_64/
+├── bin/oxq
+├── include/oxq/
+├── lib/
+│   └── cmake/OXQF/
+├── share/oxq/
+│   ├── doc/
+│   ├── spec/
+│   ├── test-vectors/
+│   └── manifest.json
+├── README.md
+├── CHANGELOG.md
+└── LICENSE
+```
+
+The Windows archive has the same layout, with `bin/oxq.exe` and `.lib`
+libraries. `share/oxq/manifest.json` records the distribution version,
+toolchain, included components, and runtime contract. It never contains the
+hash of its enclosing archive.
 
 ## Local packaging
 
@@ -18,83 +59,48 @@ Run from a clean checkout:
 npm ci
 npm run release:check
 npm run release:package
+ls out/release/
 ```
 
-Both commands start with a fresh `build/release-package` tree and perform:
+The scripts check CMake/npm version agreement, configure and build Release,
+run the complete CTest suite including the installed CMake consumer, generate
+the canonical Writer fingerprint, install all four internal components into one
+staging tree, write the internal manifest, and audit the result. The archive
+audit requires the CLI, headers, libraries, CMake package, docs, specs, vectors,
+and root license files. It rejects source control, CI, build, dependency,
+temporary, private-corpus, credential, and Xiangqi Bridge distribution paths.
 
-1. CMake and npm version agreement checks;
-2. a Release configure and complete build;
-3. all CTest tests, including the isolated installed consumer;
-4. canonical OXQ Writer fingerprint generation;
-5. separate CMake component installs for the CLI and SDK;
-6. required-file and forbidden-private-path audits.
+`release:check` stops after the staging audit. `release:package` additionally
+writes one archive and a platform build manifest to `out/release/`. The platform
+manifest is CI evidence, not a GitHub Release asset.
 
-`release:check` stops after auditing both staging trees. `release:package` additionally recreates `out/release/` and writes the two platform archives, a machine-readable manifest, and a platform SHA-256 file. A dirty Git working tree is rejected; `--allow-dirty` exists only for developing the packaging code itself.
+## Publication and verification
 
-Linux output:
+`.github/workflows/release.yml` accepts only an existing `vMAJOR.MINOR.PATCH`
+tag whose version matches both `PROJECT_VERSION` and `package.json`. It builds
+and tests the complete distribution on Ubuntu 22.04 and Windows 2022, attests
+both archives, verifies archive hashes and cross-platform Writer fingerprints,
+then produces `SHA256SUMS` for exactly the two user-visible archives.
 
-```text
-oxq-1.0.0-linux-x86_64.tar.gz
-oxq-sdk-1.0.0-linux-gcc-x86_64.tar.gz
-release-manifest-linux-x86_64.json
-SHA256SUMS-linux-x86_64
-```
-
-Windows output:
-
-```text
-oxq-1.0.0-windows-x86_64.zip
-oxq-sdk-1.0.0-windows-msvc2022-x86_64.zip
-release-manifest-windows-x86_64.json
-SHA256SUMS-windows-x86_64
-```
-
-## Archive boundaries
-
-The CLI archive contains only the `oxq` executable, README, changelog, license, specifications, CLI contract, acceptance report, and compatibility record.
-
-The SDK archive contains `oxq-core`, `oxq-convert`, public C++ headers, the relocatable `OXQF` CMake package, the same documentation, and project-authored OXQ/CBL test vectors. It intentionally does not contain the CLI executable.
-
-Both archive audits reject private paths and assets such as `.codex`, `raw`, build trees, dependency trees, credentials, and the Xiangqi Bridge distribution archive. Third-party corpus files are never installed or packaged.
-
-## GitHub Release publication
-
-`.github/workflows/release.yml` accepts only an existing `vMAJOR.MINOR.PATCH` tag. The tag version must exactly match `PROJECT_VERSION` and `package.json`.
-
-For each tag, the workflow:
-
-1. checks out the exact tag independently on Ubuntu 22.04 and Windows 2022;
-2. runs `npm run release:package` on both platforms;
-3. creates GitHub build-provenance attestations for all four binary archives;
-4. verifies archive hashes, versions, and cross-platform Writer fingerprints;
-5. creates a combined `release-manifest.json` and `SHA256SUMS`;
-6. publishes one GitHub Release containing four binary archives, both platform manifests, the combined manifest, and checksums.
-
-GitHub automatically exposes source ZIP and tar.gz downloads for the tag; they remain secondary to the explicit CLI and SDK assets. The workflow refuses to replace an existing release and never creates a tag implicitly.
+The platform manifests and a combined manifest remain CI-internal data. GitHub
+automatically provides source ZIP and tar.gz downloads for the tag; they remain
+secondary to the two explicit binary distributions.
 
 Maintainer sequence:
 
 ```bash
 git status --short
-git tag -s v1.0.0 -m "OXQF 1.0.0"
-git push origin v1.0.0
+git tag -s v1.0.1 -m "OXQF 1.0.1"
+git push origin v1.0.1
 ```
 
-If signed tags are not configured, use an annotated tag only after explicitly accepting that reduced provenance. The workflow may also be manually dispatched for an existing tag; it still verifies that tag and refuses a version mismatch.
+If signed tags are unavailable, create an annotated tag only after explicitly
+accepting the reduced provenance. The workflow neither creates tags nor replaces
+an existing release.
 
 After download, verify an archive with:
 
 ```bash
 sha256sum --check SHA256SUMS
-gh attestation verify oxq-1.0.0-linux-x86_64.tar.gz --repo pkuimyy/OXQF
+gh attestation verify oxq-1.0.1-linux-gcc-x86_64.tar.gz --repo pkuimyy/OXQF
 ```
-
-## Publication checklist
-
-1. Require M7 CI success for the exact commit.
-2. Confirm the version appears in `CMakeLists.txt`, `package.json`, and `CHANGELOG.md`.
-3. Create and push a signed version tag.
-4. Require both release build jobs and the publish job to pass.
-5. Download the CLI archives and run `oxq --version` on both platforms.
-6. Verify `SHA256SUMS` and the GitHub attestations.
-7. Enable GitHub immutable releases in repository settings when operationally appropriate.

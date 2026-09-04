@@ -17,11 +17,13 @@ npm run release:package
 ```
 
 `package-release.mjs` performs a clean Release configure, build, full CTest run,
-Writer fingerprint, component installs, and archive-content audit. It writes a
-CLI archive, a compiler-labelled SDK archive, a platform manifest, and checksums
-to `out/release/`. `assemble-release.mjs` verifies the independently built Linux
-and Windows manifests and creates the combined manifest and `SHA256SUMS` used by
-the tag-driven GitHub Release workflow.
+Writer fingerprint, component installs, and archive-content audit. It merges the
+CLI, development, documentation, and vector components into one complete,
+compiler-labelled developer distribution, with an internal `share/oxq/manifest.json`.
+It writes that archive and a platform manifest to `out/release/`.
+`assemble-release.mjs` verifies the independently built Linux and Windows
+manifests, creates CI-only combined evidence, and writes the two-archive
+`SHA256SUMS` used by the tag-driven GitHub Release workflow.
 
 Future OXQ anchor-vector generators belong here and must not call the production `oxq-core` writer.
 

@@ -6,7 +6,7 @@ OXQF is the reference implementation workspace for the OXQ single-game format. T
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 
-Version 1.0.0 implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
+Version 1.0.1 implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
 
 ## Development prerequisites
 
@@ -67,7 +67,7 @@ npm run release:package
 ls out/release/
 ```
 
-The packaging command creates a small CLI archive and a compiler-labelled SDK archive, audits their contents, and writes manifests plus SHA-256 checksums. See [the release guide](doc/release.md) for archive contents, tag publication, and the clean-checkout checklist. The evidence mapping for all twelve MVP acceptance criteria is in [the MVP acceptance report](doc/mvp-acceptance.md).
+The packaging command creates one complete, compiler-labelled developer distribution for the current platform. It contains the CLI, C++ libraries and headers, relocatable CMake package, documentation, specifications, test vectors, and an internal manifest; the Release page exposes one distribution per supported platform plus `SHA256SUMS`. See [the release guide](doc/release.md) for layout, tag publication, and the clean-checkout checklist. The evidence mapping for all twelve MVP acceptance criteria is in [the MVP acceptance report](doc/mvp-acceptance.md).
 
 ## Command-line examples
 

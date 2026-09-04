@@ -105,9 +105,10 @@ jobs:
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: >-
           gh release create "$RELEASE_TAG"
-          out/release/*
+          out/release/oxq-*
+          out/release/SHA256SUMS
           --repo "$GITHUB_REPOSITORY"
           --verify-tag
           --latest
           --title "OXQF $RELEASE_VERSION"
-          --notes "Binary-first OXQF $RELEASE_VERSION release. See CHANGELOG.md and the attached release-manifest.json. Verify downloads with SHA256SUMS or GitHub artifact attestations."
+          --notes "Complete OXQF developer distributions for Linux GCC and Windows MSVC 2022. Each archive contains the CLI, C++ libraries, headers, CMake package, documentation, specifications, test vectors, and an internal manifest. Verify downloads with SHA256SUMS or GitHub artifact attestations."

@@ -8,6 +8,8 @@ import test from "node:test";
 import { assembleRelease, equalFingerprints } from "../assemble-release.mjs";
 import {
   auditReleaseFiles,
+  distributionManifest,
+  distributionName,
   parseArguments,
   parseFingerprint,
   projectVersion,
@@ -36,6 +38,17 @@ test("release platform names are stable", () => {
   assert.throws(() => releasePlatform("darwin", "x64"), /unsupported/);
 });
 
+test("one complete developer distribution is named per platform", () => {
+  assert.equal(
+    distributionName("1.0.1", releasePlatform("linux", "x64")),
+    "oxq-1.0.1-linux-gcc-x86_64",
+  );
+  assert.equal(
+    distributionName("1.0.1", releasePlatform("win32", "x64")),
+    "oxq-1.0.1-windows-msvc2022-x86_64",
+  );
+});
+
 test("release command arguments reject ambiguous input", () => {
   assert.deepEqual(parseArguments(["--check", "--allow-dirty", "--expected-version", "1.0.0"]), {
     check: true,
@@ -53,31 +66,52 @@ test("Writer fingerprints are normalized across line-ending conventions", () => 
   );
 });
 
-const documentation = [
-  "share/doc/OXQF/LICENSE",
-  "share/doc/OXQF/README.md",
-  "share/doc/OXQF/cli.md",
+const distributionFiles = [
+  "README.md",
+  "CHANGELOG.md",
+  "LICENSE",
+  "share/oxq/manifest.json",
+  "share/oxq/doc/cli.md",
+  "share/oxq/spec/oxq-v1.md",
+  "share/oxq/spec/cbl-adapter-v1.md",
+  "share/oxq/test-vectors/oxq-v1/manifest.json",
+  "share/oxq/test-vectors/cbl-v3/SHA256SUMS",
+  "include/oxq/core/writer.hpp",
+  "include/oxq/convert/cbl_writer.hpp",
+  "lib/cmake/OXQF/OXQFConfig.cmake",
 ];
 
-test("CLI and SDK archive contracts are independently audited", () => {
-  assert.doesNotThrow(() => auditReleaseFiles("cli", [...documentation, "bin/oxq"], false));
-  assert.doesNotThrow(() => auditReleaseFiles("cli", [...documentation, "bin/oxq.exe"], true));
-  const sdk = [
-    ...documentation,
-    "include/oxq/core/writer.hpp",
-    "include/oxq/convert/cbl_writer.hpp",
-    "lib/cmake/OXQF/OXQFConfig.cmake",
+test("complete developer distribution contract is audited", () => {
+  const linux = [
+    ...distributionFiles,
+    "bin/oxq",
     "lib/liboxq-core.a",
     "lib/liboxq-convert.a",
-    "share/OXQF/vectors/oxq-v1/manifest.json",
-    "share/OXQF/vectors/cbl-v3/SHA256SUMS",
   ];
-  assert.doesNotThrow(() => auditReleaseFiles("sdk", sdk, false));
-  assert.throws(
-    () => auditReleaseFiles("cli", [...documentation, "bin/oxq", "lib/a"], false),
-    /SDK/,
+  assert.doesNotThrow(() => auditReleaseFiles(linux, false));
+  assert.doesNotThrow(() => auditReleaseFiles([
+    ...distributionFiles,
+    "bin/oxq.exe",
+    "lib/oxq-core.lib",
+    "lib/oxq-convert.lib",
+  ], true));
+  assert.throws(() => auditReleaseFiles(linux.filter((file) => file !== "bin/oxq"), false), /bin\/oxq/);
+  assert.throws(() => auditReleaseFiles([...linux, "raw/private.CBL"], false), /forbidden/);
+});
+
+test("internal distribution manifest records ABI and runtime contracts", () => {
+  assert.deepEqual(distributionManifest("1.0.1", releasePlatform("linux", "x64")), {
+    name: "OXQF",
+    version: "1.0.1",
+    format_version: "1",
+    platform: { os: "linux", arch: "x86_64", toolchain: "gcc" },
+    components: ["oxq-cli", "oxq-core", "oxq-convert", "cmake-package", "test-vectors", "documentation"],
+    runtime: { cpp_standard: "C++20", glibc_min: "2.35" },
+  });
+  assert.equal(
+    distributionManifest("1.0.1", releasePlatform("win32", "x64")).platform.msvc_runtime,
+    "static",
   );
-  assert.throws(() => auditReleaseFiles("sdk", [...sdk, "raw/private.CBL"], false), /forbidden/);
 });
 
 test("release assembly requires identical binary Writer evidence", () => {
@@ -98,10 +132,7 @@ test("release assembly verifies assets and writes combined evidence", async (con
   for (const platform of ["linux", "windows"]) {
     const compiler = platform === "linux" ? "gcc" : "msvc2022";
     const extension = platform === "linux" ? "tar.gz" : "zip";
-    const assets = [
-      `oxq-1.0.0-${platform}-x86_64.${extension}`,
-      `oxq-sdk-1.0.0-${platform}-${compiler}-x86_64.${extension}`,
-    ];
+    const assets = [`oxq-1.0.0-${platform}-${compiler}-x86_64.${extension}`];
     const artifacts = [];
     for (const asset of assets) {
       const contents = Buffer.from(asset);
@@ -113,7 +144,7 @@ test("release assembly verifies assets and writes combined evidence", async (con
       });
     }
     const manifest = {
-      schema: "oxqf-release-manifest-v1",
+      schema: "oxqf-release-manifest-v2",
       version: "1.0.0",
       platform,
       architecture: "x86_64",
@@ -125,14 +156,14 @@ test("release assembly verifies assets and writes combined evidence", async (con
       path.join(directory, `release-manifest-${platform}-x86_64.json`),
       `${JSON.stringify(manifest)}\n`,
     );
-    await writeFile(path.join(directory, `SHA256SUMS-${platform}-x86_64`), "superseded\n");
   }
 
   await assembleRelease(directory, "1.0.0");
-  const combined = JSON.parse(await readFile(path.join(directory, "release-manifest.json")));
+  const combined = JSON.parse(await readFile(path.join(directory, "combined-release-manifest.json")));
   const checksums = await readFile(path.join(directory, "SHA256SUMS"), "utf8");
-  assert.equal(combined.artifacts.length, 4);
+  assert.equal(combined.artifacts.length, 2);
   assert.deepEqual(combined.writer_fingerprint, fingerprint);
-  assert.match(checksums, /release-manifest\.json/);
-  assert.doesNotMatch(checksums, /SHA256SUMS-/);
+  assert.match(checksums, /oxq-1\.0\.0-linux-gcc-x86_64\.tar\.gz/);
+  assert.match(checksums, /oxq-1\.0\.0-windows-msvc2022-x86_64\.zip/);
+  assert.doesNotMatch(checksums, /manifest/);
 });

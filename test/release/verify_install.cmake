@@ -1,5 +1,6 @@
-set(document_root "${stage_dir}/${OXQF_INSTALL_DATADIR}/doc/OXQF")
-set(vector_root "${stage_dir}/${OXQF_INSTALL_DATADIR}/OXQF/vectors")
+set(document_root "${stage_dir}/${OXQF_INSTALL_DATADIR}/oxq/doc")
+set(specification_root "${stage_dir}/${OXQF_INSTALL_DATADIR}/oxq/spec")
+set(vector_root "${stage_dir}/${OXQF_INSTALL_DATADIR}/oxq/test-vectors")
 
 set(required_files
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/core/game_model.hpp"
@@ -8,14 +9,14 @@ set(required_files
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_reader.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_writer.hpp"
   "${stage_dir}/${OXQF_INSTALL_LIBDIR}/cmake/OXQF/OXQFConfig.cmake"
-  "${document_root}/README.md"
-  "${document_root}/CHANGELOG.md"
-  "${document_root}/LICENSE"
+  "${stage_dir}/README.md"
+  "${stage_dir}/CHANGELOG.md"
+  "${stage_dir}/LICENSE"
   "${document_root}/cli.md"
   "${document_root}/mvp-acceptance.md"
   "${document_root}/release.md"
-  "${document_root}/spec/oxq-v1.md"
-  "${document_root}/spec/cbl-adapter-v1.md"
+  "${specification_root}/oxq-v1.md"
+  "${specification_root}/cbl-adapter-v1.md"
   "${document_root}/writer-compatibility/README.md"
   "${vector_root}/oxq-v1/manifest.json"
   "${vector_root}/oxq-v1/minimal.oxq"

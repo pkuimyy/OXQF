@@ -1,12 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  mkdir,
-  readFile,
-  readdir,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
@@ -19,18 +12,14 @@ export function projectVersion(cmakeSource) {
   const match = cmakeSource.match(
     /project\(\s*OXQF\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)/s,
   );
-  if (!match) {
-    throw new Error("cannot read OXQF version from CMakeLists.txt");
-  }
+  if (!match) throw new Error("cannot read OXQF version from CMakeLists.txt");
   return match[1];
 }
 
 export function releasePlatform(platform = process.platform, architecture = process.arch) {
   const architectures = { x64: "x86_64", arm64: "arm64" };
   const arch = architectures[architecture];
-  if (!arch) {
-    throw new Error(`unsupported release architecture: ${architecture}`);
-  }
+  if (!arch) throw new Error(`unsupported release architecture: ${architecture}`);
   if (platform === "linux") {
     return { name: "linux", arch, compiler: "gcc", extension: "tar.gz" };
   }
@@ -43,19 +32,19 @@ export function releasePlatform(platform = process.platform, architecture = proc
   throw new Error(`unsupported release platform: ${platform}`);
 }
 
+export function distributionName(version, platform) {
+  return `oxq-${version}-${platform.name}-${platform.compiler}-${platform.arch}`;
+}
+
 export function parseArguments(arguments_) {
   const options = { check: false, allowDirty: false, expectedVersion: undefined };
   for (let index = 0; index < arguments_.length; ++index) {
     const argument = arguments_[index];
-    if (argument === "--check") {
-      options.check = true;
-    } else if (argument === "--allow-dirty") {
-      options.allowDirty = true;
-    } else if (argument === "--expected-version") {
+    if (argument === "--check") options.check = true;
+    else if (argument === "--allow-dirty") options.allowDirty = true;
+    else if (argument === "--expected-version") {
       options.expectedVersion = arguments_[++index];
-      if (!options.expectedVersion) {
-        throw new Error("--expected-version requires a value");
-      }
+      if (!options.expectedVersion) throw new Error("--expected-version requires a value");
     } else {
       throw new Error(`unknown argument: ${argument}`);
     }
@@ -67,6 +56,32 @@ export function parseFingerprint(source) {
   return Object.fromEntries(
     source.trim().split(/\r?\n/).map((line) => line.split("=").map((value) => value.trim())),
   );
+}
+
+export function distributionManifest(version, platform) {
+  const platformMetadata = {
+    os: platform.name,
+    arch: platform.arch,
+    toolchain: platform.compiler,
+  };
+  if (platform.name === "windows") platformMetadata.msvc_runtime = "static";
+  const runtime = { cpp_standard: "C++20" };
+  if (platform.name === "linux") runtime.glibc_min = "2.35";
+  return {
+    name: "OXQF",
+    version,
+    format_version: "1",
+    platform: platformMetadata,
+    components: [
+      "oxq-cli",
+      "oxq-core",
+      "oxq-convert",
+      "cmake-package",
+      "test-vectors",
+      "documentation",
+    ],
+    runtime,
+  };
 }
 
 function run(command, arguments_, options = {}) {
@@ -94,39 +109,30 @@ async function filesBelow(root, relative = "") {
 }
 
 function requirePath(files, description, predicate) {
-  if (!files.some(predicate)) {
-    throw new Error(`release staging tree is missing ${description}`);
-  }
+  if (!files.some(predicate)) throw new Error(`release staging tree is missing ${description}`);
 }
 
-export function auditReleaseFiles(kind, files, windows = process.platform === "win32") {
-  const forbidden = /(^|\/)(\.codex|raw|build|node_modules|secrets?)(\/|\.|$)|CCBridge\.rar$/i;
+export function auditReleaseFiles(files, windows = process.platform === "win32") {
+  const forbidden = /(^|\/)(\.git|\.github|\.codex|raw|build|out|node_modules|tmp|secrets?)(\/|\.|$)|CCBridge\.rar$/i;
   const leaked = files.find((file) => forbidden.test(file));
   if (leaked) throw new Error(`forbidden release path: ${leaked}`);
 
-  requirePath(files, "LICENSE", (file) => file === "share/doc/OXQF/LICENSE");
-  requirePath(files, "README", (file) => file === "share/doc/OXQF/README.md");
-  requirePath(files, "CLI contract", (file) => file === "share/doc/OXQF/cli.md");
-
-  if (kind === "cli") {
-    const executable = windows ? "bin/oxq.exe" : "bin/oxq";
-    requirePath(files, executable, (file) => file === executable);
-    if (files.some((file) => file.startsWith("include/") || file.startsWith("lib/"))) {
-      throw new Error("CLI archive unexpectedly contains SDK files");
-    }
-    return;
-  }
-
+  const executable = windows ? "bin/oxq.exe" : "bin/oxq";
+  requirePath(files, executable, (file) => file === executable);
+  requirePath(files, "root README", (file) => file === "README.md");
+  requirePath(files, "root changelog", (file) => file === "CHANGELOG.md");
+  requirePath(files, "root license", (file) => file === "LICENSE");
   requirePath(files, "core headers", (file) => file === "include/oxq/core/writer.hpp");
   requirePath(files, "convert headers", (file) => file === "include/oxq/convert/cbl_writer.hpp");
   requirePath(files, "CMake package", (file) => file === "lib/cmake/OXQF/OXQFConfig.cmake");
   requirePath(files, "oxq-core library", (file) => /(^|\/)lib\/?(lib)?oxq-core\.(a|lib)$/i.test(file));
   requirePath(files, "oxq-convert library", (file) => /(^|\/)lib\/?(lib)?oxq-convert\.(a|lib)$/i.test(file));
-  requirePath(files, "OXQ vectors", (file) => file === "share/OXQF/vectors/oxq-v1/manifest.json");
-  requirePath(files, "CBL vectors", (file) => file === "share/OXQF/vectors/cbl-v3/SHA256SUMS");
-  if (files.some((file) => file === "bin/oxq" || file === "bin/oxq.exe")) {
-    throw new Error("SDK archive unexpectedly contains the CLI executable");
-  }
+  requirePath(files, "distribution manifest", (file) => file === "share/oxq/manifest.json");
+  requirePath(files, "CLI documentation", (file) => file === "share/oxq/doc/cli.md");
+  requirePath(files, "OXQ specification", (file) => file === "share/oxq/spec/oxq-v1.md");
+  requirePath(files, "CBL specification", (file) => file === "share/oxq/spec/cbl-adapter-v1.md");
+  requirePath(files, "OXQ vectors", (file) => file === "share/oxq/test-vectors/oxq-v1/manifest.json");
+  requirePath(files, "CBL vectors", (file) => file === "share/oxq/test-vectors/cbl-v3/SHA256SUMS");
 }
 
 async function sha256(file) {
@@ -142,14 +148,7 @@ async function archive(stagingDirectory, rootName, outputFile, extension) {
 
 async function installComponent(buildDirectory, prefix, component) {
   run("cmake", [
-    "--install",
-    buildDirectory,
-    "--prefix",
-    prefix,
-    "--config",
-    "Release",
-    "--component",
-    component,
+    "--install", buildDirectory, "--prefix", prefix, "--config", "Release", "--component", component,
   ]);
 }
 
@@ -167,48 +166,33 @@ async function main() {
   }
   if (!options.allowDirty) {
     const status = run("git", ["status", "--porcelain"], { capture: true });
-    if (status.trim()) {
-      throw new Error("release packaging requires a clean Git working tree");
-    }
+    if (status.trim()) throw new Error("release packaging requires a clean Git working tree");
   }
 
   const platform = releasePlatform();
+  const distribution = distributionName(version, platform);
   const buildDirectory = path.join(projectRoot, "build", "release-package");
   const stagingDirectory = path.join(buildDirectory, "staging");
+  const distributionRoot = path.join(stagingDirectory, distribution);
   const outputDirectory = path.join(projectRoot, "out", "release");
   await rm(buildDirectory, { recursive: true, force: true });
   await mkdir(buildDirectory, { recursive: true });
 
   const configure = ["-S", projectRoot, "-B", buildDirectory];
-  if (platform.name === "windows") {
-    configure.push("-G", "Visual Studio 17 2022", "-A", "x64");
-  } else {
-    configure.push("-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release");
-  }
+  if (platform.name === "windows") configure.push("-G", "Visual Studio 17 2022", "-A", "x64");
+  else configure.push("-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release");
   run("cmake", configure);
   run("cmake", ["--build", buildDirectory, "--config", "Release"]);
   run("ctest", ["--test-dir", buildDirectory, "-C", "Release", "--output-on-failure"]);
-  run("cmake", [
-    "--build",
-    buildDirectory,
-    "--config",
-    "Release",
-    "--target",
-    "oxq_writer_fingerprint",
-  ]);
+  run("cmake", ["--build", buildDirectory, "--config", "Release", "--target", "oxq_writer_fingerprint"]);
 
-  const cliName = `oxq-${version}-${platform.name}-${platform.arch}`;
-  const sdkName = `oxq-sdk-${version}-${platform.name}-${platform.compiler}-${platform.arch}`;
-  const cliRoot = path.join(stagingDirectory, cliName);
-  const sdkRoot = path.join(stagingDirectory, sdkName);
-  await installComponent(buildDirectory, cliRoot, "Runtime");
-  await installComponent(buildDirectory, cliRoot, "Documentation");
-  await installComponent(buildDirectory, sdkRoot, "Development");
-  await installComponent(buildDirectory, sdkRoot, "Documentation");
-  await installComponent(buildDirectory, sdkRoot, "Vectors");
-
-  auditReleaseFiles("cli", await filesBelow(cliRoot), platform.name === "windows");
-  auditReleaseFiles("sdk", await filesBelow(sdkRoot), platform.name === "windows");
+  for (const component of ["Runtime", "Development", "Documentation", "Vectors"]) {
+    await installComponent(buildDirectory, distributionRoot, component);
+  }
+  const internalManifest = path.join(distributionRoot, "share", "oxq", "manifest.json");
+  await mkdir(path.dirname(internalManifest), { recursive: true });
+  await writeFile(internalManifest, `${JSON.stringify(distributionManifest(version, platform), null, 2)}\n`);
+  auditReleaseFiles(await filesBelow(distributionRoot), platform.name === "windows");
   if (options.check) {
     console.log(`\nRelease staging check passed for OXQF ${version} (${platform.name}/${platform.arch})`);
     return;
@@ -216,47 +200,28 @@ async function main() {
 
   await rm(outputDirectory, { recursive: true, force: true });
   await mkdir(outputDirectory, { recursive: true });
-  const cliArchive = path.join(outputDirectory, `${cliName}.${platform.extension}`);
-  const sdkArchive = path.join(outputDirectory, `${sdkName}.${platform.extension}`);
-  await archive(stagingDirectory, cliName, cliArchive, platform.extension);
-  await archive(stagingDirectory, sdkName, sdkArchive, platform.extension);
-
-  const fingerprint = await readFile(
-    path.join(buildDirectory, "writer-fingerprint.txt"),
-    "utf8",
-  );
-  const artifacts = [];
-  for (const file of [cliArchive, sdkArchive]) {
-    artifacts.push({
-      name: path.basename(file),
-      bytes: (await stat(file)).size,
-      sha256: await sha256(file),
-    });
-  }
+  const archiveFile = path.join(outputDirectory, `${distribution}.${platform.extension}`);
+  await archive(stagingDirectory, distribution, archiveFile, platform.extension);
+  const fingerprint = await readFile(path.join(buildDirectory, "writer-fingerprint.txt"), "utf8");
+  const artifact = {
+    name: path.basename(archiveFile),
+    bytes: (await stat(archiveFile)).size,
+    sha256: await sha256(archiveFile),
+  };
   const manifestName = `release-manifest-${platform.name}-${platform.arch}.json`;
-  const manifestPath = path.join(outputDirectory, manifestName);
   await writeFile(
-    manifestPath,
+    path.join(outputDirectory, manifestName),
     `${JSON.stringify({
-      schema: "oxqf-release-manifest-v1",
+      schema: "oxqf-release-manifest-v2",
       version,
       platform: platform.name,
       architecture: platform.arch,
       compiler: platform.compiler,
       writer_fingerprint: parseFingerprint(fingerprint),
-      artifacts,
+      artifacts: [artifact],
     }, null, 2)}\n`,
   );
-
-  const checksumFiles = [...artifacts, {
-    name: manifestName,
-    sha256: await sha256(manifestPath),
-  }].sort((left, right) => left.name.localeCompare(right.name));
-  await writeFile(
-    path.join(outputDirectory, `SHA256SUMS-${platform.name}-${platform.arch}`),
-    `${checksumFiles.map((entry) => `${entry.sha256}  ${entry.name}`).join("\n")}\n`,
-  );
-  console.log(`\nRelease packages written to ${outputDirectory}`);
+  console.log(`\nRelease package written to ${outputDirectory}`);
 }
 
 if (fileURLToPath(import.meta.url) === process.argv[1]) {

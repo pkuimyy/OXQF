@@ -13,7 +13,7 @@ export function equalFingerprints(left, right) {
 }
 
 function validateManifest(manifest) {
-  if (manifest.schema !== "oxqf-release-manifest-v1") {
+  if (manifest.schema !== "oxqf-release-manifest-v2") {
     throw new Error("unsupported release manifest schema");
   }
   if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) {
@@ -31,15 +31,12 @@ function validateManifest(manifest) {
       || !/^\d+$/.test(manifest.writer_fingerprint?.framed_bytes)) {
     throw new Error("invalid Writer fingerprint in release manifest");
   }
-  const expectedAssets = new Set([
-    `oxq-${manifest.version}-${manifest.platform}-${manifest.architecture}.${platform.extension}`,
-    `oxq-sdk-${manifest.version}-${manifest.platform}-${manifest.compiler}-${manifest.architecture}.${platform.extension}`,
-  ]);
-  if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== expectedAssets.size) {
-    throw new Error(`release manifest for ${manifest.platform} must contain two archives`);
+  const expectedAsset = `oxq-${manifest.version}-${manifest.platform}-${manifest.compiler}-${manifest.architecture}.${platform.extension}`;
+  if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== 1) {
+    throw new Error(`release manifest for ${manifest.platform} must contain one distribution archive`);
   }
   for (const artifact of manifest.artifacts) {
-    if (!expectedAssets.delete(artifact.name)
+    if (artifact.name !== expectedAsset
         || artifact.name !== path.basename(artifact.name)
         || !Number.isSafeInteger(artifact.bytes)
         || artifact.bytes < 1
@@ -100,12 +97,12 @@ export async function assembleRelease(directory, expectedVersion) {
   }
   artifacts.sort((left, right) => left.name.localeCompare(right.name));
 
-  const combinedName = "release-manifest.json";
+  const combinedName = "combined-release-manifest.json";
   const combinedPath = path.join(directory, combinedName);
   await writeFile(
     combinedPath,
     `${JSON.stringify({
-      schema: "oxqf-release-manifest-v1",
+      schema: "oxqf-release-manifest-v2",
       version,
       writer_fingerprint: manifests[0].value.writer_fingerprint,
       builds: manifests.map(({ value }) => ({
@@ -120,7 +117,7 @@ export async function assembleRelease(directory, expectedVersion) {
   for (const name of names.filter((name) => name.startsWith("SHA256SUMS"))) {
     await rm(path.join(directory, name), { force: true });
   }
-  const checksumNames = [...artifacts.map(({ name }) => name), ...manifestNames, combinedName].sort();
+  const checksumNames = artifacts.map(({ name }) => name).sort();
   const checksumLines = [];
   for (const name of checksumNames) {
     checksumLines.push(`${await sha256(path.join(directory, name))}  ${name}`);

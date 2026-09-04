@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.23)
 
 project(
   OXQF
-  VERSION 1.0.0
+  VERSION 1.0.1
   DESCRIPTION "Open Xiangqi Format reference implementation"
   LANGUAGES CXX
 )
@@ -76,31 +76,36 @@ install(
     README.md
     CHANGELOG.md
     LICENSE
+  DESTINATION "."
+  COMPONENT Documentation
+)
+install(
+  FILES
     doc/cli.md
     doc/mvp-acceptance.md
     doc/release.md
-  DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/oxq/doc"
   COMPONENT Documentation
 )
 install(
   DIRECTORY spec/
-  DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF/spec"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/oxq/spec"
   COMPONENT Documentation
   FILES_MATCHING PATTERN "*.md"
 )
 install(
   DIRECTORY test/vectors/oxq-v1/
-  DESTINATION "${CMAKE_INSTALL_DATADIR}/OXQF/vectors/oxq-v1"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/oxq/test-vectors/oxq-v1"
   COMPONENT Vectors
 )
 install(
   DIRECTORY test/gold-baseline/
-  DESTINATION "${CMAKE_INSTALL_DATADIR}/OXQF/vectors/cbl-v3"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/oxq/test-vectors/cbl-v3"
   COMPONENT Vectors
 )
 install(
   FILES test/writer-compatibility/README.md
-  DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/OXQF/writer-compatibility"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/oxq/doc/writer-compatibility"
   COMPONENT Documentation
 )
 
