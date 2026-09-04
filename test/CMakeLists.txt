@@ -346,6 +346,10 @@ add_executable(
   convert/cbl_semantic_baseline_test.cpp
 )
 target_link_libraries(oxq_convert_cbl_semantic_baseline_test PRIVATE OXQF::convert)
+target_include_directories(
+  oxq_convert_cbl_semantic_baseline_test
+  PRIVATE "${PROJECT_SOURCE_DIR}/src/convert/src"
+)
 target_compile_definitions(
   oxq_convert_cbl_semantic_baseline_test
   PRIVATE OXQF_GOLD_BASELINE_DIRECTORY="${PROJECT_SOURCE_DIR}/test/gold-baseline"
@@ -363,12 +367,10 @@ add_custom_command(
   COMMAND
     "${CMAKE_COMMAND}"
     "-DOXQF_WRITER_EXECUTABLE=$<TARGET_FILE:oxq_convert_cbl_semantic_baseline_test>"
-    "-DOXQF_REFERENCE=${PROJECT_SOURCE_DIR}/test/gold-baseline/semantic-baseline.json"
     "-DOXQF_OUTPUT=${OXQF_WRITER_FINGERPRINT}"
     -P "${PROJECT_SOURCE_DIR}/cmake/OXQFWriterFingerprint.cmake"
   DEPENDS
     oxq_convert_cbl_semantic_baseline_test
-    "${PROJECT_SOURCE_DIR}/test/gold-baseline/semantic-baseline.json"
     "${PROJECT_SOURCE_DIR}/cmake/OXQFWriterFingerprint.cmake"
   VERBATIM
 )

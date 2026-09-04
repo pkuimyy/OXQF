@@ -1,8 +1,11 @@
 #include <oxq/convert/cbl_reader.hpp>
 #include <oxq/core/writer.hpp>
 
+#include "cbl/hash.hpp"
+
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -90,13 +93,21 @@ constexpr std::array<std::string_view, 12> kFiles{
   return "unknown";
 }
 
-void append_game(std::string& output, const oxq::core::GameModel& game,
-                 std::string_view indent) {
+void append_game(std::string& output, std::vector<std::byte>* writer_bytes,
+                 const oxq::core::GameModel& game, std::string_view indent) {
   const auto written = oxq::core::write_oxq(game);
   if (!std::holds_alternative<std::vector<std::byte>>(written)) {
     throw std::runtime_error("cannot encode normalized GameModel");
   }
   const auto& bytes = std::get<std::vector<std::byte>>(written);
+  if (writer_bytes != nullptr) {
+    auto size = static_cast<std::uint64_t>(bytes.size());
+    for (std::size_t index = 0; index < sizeof(size); ++index) {
+      writer_bytes->push_back(static_cast<std::byte>(size & 0xffU));
+      size >>= 8U;
+    }
+    writer_bytes->insert(writer_bytes->end(), bytes.begin(), bytes.end());
+  }
   output += std::string{indent} + "{\n";
   output += std::string{indent} + "  \"uuid\": " + json_string(game.uuid.to_string()) + ",\n";
   output += std::string{indent} + "  \"title\": ";
@@ -150,7 +161,8 @@ void append_game(std::string& output, const oxq::core::GameModel& game,
   output += std::string{indent} + "}";
 }
 
-[[nodiscard]] std::string build_baseline(const fs::path& directory) {
+[[nodiscard]] std::string build_baseline(
+    const fs::path& directory, std::vector<std::byte>* writer_bytes = nullptr) {
   std::string output = "{\n  \"schema\": \"oxqf-cbl-semantic-baseline-v1\",\n  \"files\": [\n";
   for (std::size_t file_index = 0; file_index < kFiles.size(); ++file_index) {
     const auto outcome = oxq::convert::read_cbl(read_bytes(directory / kFiles[file_index]));
@@ -166,7 +178,7 @@ void append_game(std::string& output, const oxq::core::GameModel& game,
     output += "      \"library_name\": " + json_string(result.library.name) + ",\n";
     output += "      \"games\": [\n";
     for (std::size_t game_index = 0; game_index < result.games.size(); ++game_index) {
-      append_game(output, result.games[game_index], "        ");
+      append_game(output, writer_bytes, result.games[game_index], "        ");
       output += game_index + 1U == result.games.size() ? "\n" : ",\n";
     }
     output += "      ]\n    }";
@@ -180,15 +192,22 @@ void append_game(std::string& output, const oxq::core::GameModel& game,
 
 int main(int argc, char* argv[]) {
   try {
+    const bool dump = argc == 2 && std::string_view(argv[1]) == "--dump";
+    const bool fingerprint =
+        argc == 2 && std::string_view(argv[1]) == "--fingerprint";
+    if (argc != 1 && !dump && !fingerprint) {
+      std::cerr <<
+          "usage: oxq_convert_cbl_semantic_baseline_test [--dump|--fingerprint]\n";
+      return 2;
+    }
+
     const fs::path directory{OXQF_GOLD_BASELINE_DIRECTORY};
-    const auto actual = build_baseline(directory);
-    if (argc == 2 && std::string_view(argv[1]) == "--dump") {
+    std::vector<std::byte> writer_bytes;
+    const auto actual = build_baseline(
+        directory, fingerprint ? &writer_bytes : nullptr);
+    if (dump) {
       std::cout << actual;
       return 0;
-    }
-    if (argc != 1) {
-      std::cerr << "usage: oxq_convert_cbl_semantic_baseline_test [--dump]\n";
-      return 2;
     }
     const auto expected_bytes = read_bytes(directory / "semantic-baseline.json");
     const std::string expected(reinterpret_cast<const char*>(expected_bytes.data()),
@@ -196,6 +215,10 @@ int main(int argc, char* argv[]) {
     if (actual != expected) {
       std::cerr << "semantic-baseline.json is stale; regenerate with --dump\n";
       return 1;
+    }
+    if (fingerprint) {
+      std::cout << "sha256=" << oxq::convert::detail::sha256_hex(writer_bytes)
+                << "\nframed_bytes=" << writer_bytes.size() << '\n';
     }
     return 0;
   } catch (const std::exception& error) {
