@@ -8,8 +8,8 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
           cache: npm
@@ -19,12 +19,31 @@ jobs:
           sudo apt-get install --yes ninja-build clang
       - run: npm ci
       - run: npm run ci
+      - name: Run bounded reader fuzz regression
+        run: |
+          cmake --preset fuzz
+          cmake --build --preset fuzz --target oxq_core_reader_fuzz
+          ctest --test-dir build/fuzz -R core.reader-fuzz-smoke --output-on-failure
+      - name: Build and verify release candidate
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+          ctest --preset release
+          cmake --build --preset release --target oxq_writer_fingerprint package
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-linux
+          path: |
+            build/release/writer-fingerprint.txt
+            build/release/OXQF-*.tar.gz
+            build/release/OXQF-*.tar.gz.sha256
+          if-no-files-found: error
 
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
           cache: npm
@@ -33,3 +52,37 @@ jobs:
       - run: cmake --preset dev
       - run: cmake --build --preset dev
       - run: ctest --preset dev
+      - name: Build and verify release candidate
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+          ctest --preset release
+          cmake --build --preset release --target oxq_writer_fingerprint package
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-windows
+          path: |
+            build/release/writer-fingerprint.txt
+            build/release/OXQF-*.zip
+            build/release/OXQF-*.zip.sha256
+          if-no-files-found: error
+
+  release-evidence:
+    runs-on: ubuntu-latest
+    needs: [linux, windows]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-linux
+          path: artifacts/linux
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-windows
+          path: artifacts/windows
+      - name: Compare Linux and Windows OXQ Writer bytes
+        run: >-
+          cmake
+          -DOXQF_LINUX_FINGERPRINT=artifacts/linux/writer-fingerprint.txt
+          -DOXQF_WINDOWS_FINGERPRINT=artifacts/windows/writer-fingerprint.txt
+          -P cmake/OXQFCompareFingerprints.cmake

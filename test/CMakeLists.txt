@@ -357,6 +357,23 @@ add_test(
   COMMAND oxq_convert_cbl_semantic_baseline_test
 )
 
+set(OXQF_WRITER_FINGERPRINT "${PROJECT_BINARY_DIR}/writer-fingerprint.txt")
+add_custom_command(
+  OUTPUT "${OXQF_WRITER_FINGERPRINT}"
+  COMMAND
+    "${CMAKE_COMMAND}"
+    "-DOXQF_WRITER_EXECUTABLE=$<TARGET_FILE:oxq_convert_cbl_semantic_baseline_test>"
+    "-DOXQF_REFERENCE=${PROJECT_SOURCE_DIR}/test/gold-baseline/semantic-baseline.json"
+    "-DOXQF_OUTPUT=${OXQF_WRITER_FINGERPRINT}"
+    -P "${PROJECT_SOURCE_DIR}/cmake/OXQFWriterFingerprint.cmake"
+  DEPENDS
+    oxq_convert_cbl_semantic_baseline_test
+    "${PROJECT_SOURCE_DIR}/test/gold-baseline/semantic-baseline.json"
+    "${PROJECT_SOURCE_DIR}/cmake/OXQFWriterFingerprint.cmake"
+  VERBATIM
+)
+add_custom_target(oxq_writer_fingerprint DEPENDS "${OXQF_WRITER_FINGERPRINT}")
+
 add_executable(oxq_convert_cbl_corpus_test convert/cbl_corpus_test.cpp)
 target_link_libraries(oxq_convert_cbl_corpus_test PRIVATE OXQF::convert)
 oxqf_set_project_warnings(oxq_convert_cbl_corpus_test)
@@ -451,5 +468,8 @@ add_test(
     "-DOXQF_SOURCE_DIR=${PROJECT_SOURCE_DIR}/test/consumer"
     "-DOXQF_GENERATOR=${CMAKE_GENERATOR}"
     "-DOXQF_CONFIG=$<CONFIG>"
+    "-DOXQF_INSTALL_INCLUDEDIR=${CMAKE_INSTALL_INCLUDEDIR}"
+    "-DOXQF_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR}"
+    "-DOXQF_INSTALL_DATADIR=${CMAKE_INSTALL_DATADIR}"
     -P "${PROJECT_SOURCE_DIR}/test/consumer/run.cmake"
 )

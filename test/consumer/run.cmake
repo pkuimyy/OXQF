@@ -1,4 +1,10 @@
-foreach(required_variable IN ITEMS OXQF_BUILD_DIR OXQF_SOURCE_DIR OXQF_GENERATOR)
+foreach(required_variable IN ITEMS
+    OXQF_BUILD_DIR
+    OXQF_SOURCE_DIR
+    OXQF_GENERATOR
+    OXQF_INSTALL_INCLUDEDIR
+    OXQF_INSTALL_LIBDIR
+    OXQF_INSTALL_DATADIR)
   if(NOT DEFINED ${required_variable})
     message(FATAL_ERROR "Missing required variable: ${required_variable}")
   endif()
@@ -21,6 +27,8 @@ execute_process(
     ${config_arguments}
   COMMAND_ERROR_IS_FATAL ANY
 )
+
+include("${OXQF_SOURCE_DIR}/../release/verify_install.cmake")
 
 if(WIN32)
   set(path_separator ";")
