@@ -7,8 +7,8 @@ in CI, and by the tag-driven GitHub Release workflow.
 ## Supported binary baseline
 
 - Linux: GCC on Ubuntu 22.04 x86-64, C++20, glibc 2.35 or newer.
-- Windows: MSVC/Visual Studio 2022 on Windows Server 2022 x86-64, C++20, with
-  the static MSVC runtime.
+- Windows: MSVC C++20 toolchain on Windows x64, with the static MSVC runtime;
+  CI currently uses Windows Server 2022.
 - Windows packaging uses the `Ninja Multi-Config` generator from an MSVC
   developer environment; the Release configuration is selected with
   `--config Release`.
@@ -24,7 +24,7 @@ Release assets are deliberately limited to:
 
 ```text
 oxq-1.0.0-linux-gcc-x86_64.tar.gz
-oxq-1.0.0-windows-msvc2022-x86_64.zip
+oxq-1.0.0-windows-x64-msvc.zip
 SHA256SUMS
 ```
 
@@ -105,5 +105,5 @@ After download, verify an archive with:
 
 ```bash
 sha256sum --check SHA256SUMS
-gh attestation verify oxq-1.0.0-linux-gcc-x86_64.tar.gz --repo pkuimyy/OXQF
+gh attestation verify oxq-1.0.0-windows-x64-msvc.zip --repo pkuimyy/OXQF
 ```

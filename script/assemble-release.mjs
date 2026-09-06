@@ -21,7 +21,7 @@ function validateManifest(manifest) {
   }
   const platforms = {
     linux: { compiler: "gcc", extension: "tar.gz" },
-    windows: { compiler: "msvc2022", extension: "zip" },
+    windows: { compiler: "msvc", extension: "zip" },
   };
   const platform = platforms[manifest.platform];
   if (!platform || manifest.compiler !== platform.compiler || manifest.architecture !== "x86_64") {
@@ -31,7 +31,12 @@ function validateManifest(manifest) {
       || !/^\d+$/.test(manifest.writer_fingerprint?.framed_bytes)) {
     throw new Error("invalid Writer fingerprint in release manifest");
   }
-  const expectedAsset = `oxq-${manifest.version}-${manifest.platform}-${manifest.compiler}-${manifest.architecture}.${platform.extension}`;
+  const architecture = manifest.platform === "windows" && manifest.architecture === "x86_64"
+    ? "x64"
+    : manifest.architecture;
+  const expectedAsset = manifest.platform === "windows"
+    ? `oxq-${manifest.version}-${manifest.platform}-${architecture}-${manifest.compiler}.${platform.extension}`
+    : `oxq-${manifest.version}-${manifest.platform}-${manifest.compiler}-${manifest.architecture}.${platform.extension}`;
   if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length !== 1) {
     throw new Error(`release manifest for ${manifest.platform} must contain one distribution archive`);
   }

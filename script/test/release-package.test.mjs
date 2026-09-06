@@ -31,7 +31,7 @@ test("release platform names are stable", () => {
   assert.deepEqual(releasePlatform("win32", "x64"), {
     name: "windows",
     arch: "x86_64",
-    compiler: "msvc2022",
+    compiler: "msvc",
     extension: "zip",
   });
   assert.throws(() => releasePlatform("win32", "arm64"), /unsupported Windows/);
@@ -45,7 +45,7 @@ test("one complete developer distribution is named per platform", () => {
   );
   assert.equal(
     distributionName("1.0.0", releasePlatform("win32", "x64")),
-    "oxq-1.0.0-windows-msvc2022-x86_64",
+    "oxq-1.0.0-windows-x64-msvc",
   );
 });
 
@@ -130,9 +130,12 @@ test("release assembly verifies assets and writes combined evidence", async (con
   context.after(() => rm(directory, { recursive: true, force: true }));
   const fingerprint = { sha256: "a".repeat(64), framed_bytes: "42" };
   for (const platform of ["linux", "windows"]) {
-    const compiler = platform === "linux" ? "gcc" : "msvc2022";
+    const compiler = platform === "linux" ? "gcc" : "msvc";
     const extension = platform === "linux" ? "tar.gz" : "zip";
-    const assets = [`oxq-1.0.0-${platform}-${compiler}-x86_64.${extension}`];
+    const asset = platform === "windows"
+      ? `oxq-1.0.0-${platform}-x64-${compiler}.${extension}`
+      : `oxq-1.0.0-${platform}-${compiler}-x86_64.${extension}`;
+    const assets = [asset];
     const artifacts = [];
     for (const asset of assets) {
       const contents = Buffer.from(asset);
@@ -164,6 +167,6 @@ test("release assembly verifies assets and writes combined evidence", async (con
   assert.equal(combined.artifacts.length, 2);
   assert.deepEqual(combined.writer_fingerprint, fingerprint);
   assert.match(checksums, /oxq-1\.0\.0-linux-gcc-x86_64\.tar\.gz/);
-  assert.match(checksums, /oxq-1\.0\.0-windows-msvc2022-x86_64\.zip/);
+  assert.match(checksums, /oxq-1\.0\.0-windows-x64-msvc\.zip/);
   assert.doesNotMatch(checksums, /manifest/);
 });

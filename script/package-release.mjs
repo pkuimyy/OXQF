@@ -27,13 +27,16 @@ export function releasePlatform(platform = process.platform, architecture = proc
     if (architecture !== "x64") {
       throw new Error(`unsupported Windows release architecture: ${architecture}`);
     }
-    return { name: "windows", arch, compiler: "msvc2022", extension: "zip" };
+    return { name: "windows", arch, compiler: "msvc", extension: "zip" };
   }
   throw new Error(`unsupported release platform: ${platform}`);
 }
 
 export function distributionName(version, platform) {
-  return `oxq-${version}-${platform.name}-${platform.compiler}-${platform.arch}`;
+  const identity = platform.name === "windows"
+    ? `${platform.name}-${platform.arch === "x86_64" ? "x64" : platform.arch}-${platform.compiler}`
+    : `${platform.name}-${platform.compiler}-${platform.arch}`;
+  return `oxq-${version}-${identity}`;
 }
 
 export function parseArguments(arguments_) {
