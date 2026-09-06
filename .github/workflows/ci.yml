@@ -42,7 +42,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Configure Visual Studio 2022
+      - name: Set up MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Verify Ninja
+        run: ninja --version
+      - name: Configure MSVC with Ninja Multi-Config
         run: cmake --preset windows-msvc
       - name: Build with MSVC Debug
         run: cmake --build --preset windows-msvc-debug

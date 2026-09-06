@@ -178,9 +178,7 @@ async function main() {
   await rm(buildDirectory, { recursive: true, force: true });
   await mkdir(buildDirectory, { recursive: true });
 
-  const configure = ["-S", projectRoot, "-B", buildDirectory];
-  if (platform.name === "windows") configure.push("-G", "Visual Studio 17 2022", "-A", "x64");
-  else configure.push("-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release");
+  const configure = ["-S", projectRoot, "-B", buildDirectory, "-G", "Ninja Multi-Config"];
   run("cmake", configure);
   run("cmake", ["--build", buildDirectory, "--config", "Release"]);
   run("ctest", ["--test-dir", buildDirectory, "-C", "Release", "--output-on-failure"]);

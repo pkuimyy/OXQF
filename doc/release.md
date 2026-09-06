@@ -9,6 +9,9 @@ in CI, and by the tag-driven GitHub Release workflow.
 - Linux: GCC on Ubuntu 22.04 x86-64, C++20, glibc 2.35 or newer.
 - Windows: MSVC/Visual Studio 2022 on Windows Server 2022 x86-64, C++20, with
   the static MSVC runtime.
+- Windows packaging uses the `Ninja Multi-Config` generator from an MSVC
+  developer environment; the Release configuration is selected with
+  `--config Release`.
 - The installed `OXQF` CMake package supplies the matching static runtime as a
   default to MSVC consumer targets created after `find_package(OXQF)`, unless a
   consuming project explicitly chose a runtime first.

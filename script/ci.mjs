@@ -3,11 +3,11 @@ import { spawnSync } from "node:child_process";
 const steps = [
   ["npm", ["test"]],
   ["cmake", ["--preset", "dev"]],
-  ["cmake", ["--build", "--preset", "dev"]],
-  ["ctest", ["--preset", "dev"]],
+  ["cmake", ["--build", "--preset", "dev", "--config", "Debug"]],
+  ["ctest", ["--preset", "dev", "-C", "Debug"]],
   ["cmake", ["--preset", "clang-sanitize"]],
-  ["cmake", ["--build", "--preset", "clang-sanitize"]],
-  ["ctest", ["--preset", "clang-sanitize"]],
+  ["cmake", ["--build", "--preset", "clang-sanitize", "--config", "Debug"]],
+  ["ctest", ["--preset", "clang-sanitize", "-C", "Debug"]],
 ];
 
 for (const [command, arguments_] of steps) {

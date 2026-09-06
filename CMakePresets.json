@@ -9,10 +9,9 @@
     {
       "name": "dev",
       "displayName": "Development",
-      "generator": "Ninja",
+      "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
@@ -46,41 +45,53 @@
     {
       "name": "release",
       "displayName": "Release candidate",
-      "generator": "Ninja",
+      "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
       "name": "windows-msvc",
       "displayName": "Windows MSVC",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/windows-msvc"
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/windows-msvc",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     }
   ],
   "buildPresets": [
     {
       "name": "dev",
-      "configurePreset": "dev"
+      "configurePreset": "dev",
+      "configuration": "Debug"
+    },
+    {
+      "name": "dev-release",
+      "configurePreset": "dev",
+      "configuration": "Release"
     },
     {
       "name": "sanitize",
-      "configurePreset": "sanitize"
+      "configurePreset": "sanitize",
+      "configuration": "Debug"
     },
     {
       "name": "clang-sanitize",
-      "configurePreset": "clang-sanitize"
+      "configurePreset": "clang-sanitize",
+      "configuration": "Debug"
     },
     {
       "name": "fuzz",
-      "configurePreset": "fuzz"
+      "configurePreset": "fuzz",
+      "configuration": "Debug"
     },
     {
       "name": "release",
-      "configurePreset": "release"
+      "configurePreset": "release",
+      "configuration": "Release"
     },
     {
       "name": "windows-msvc-debug",
@@ -97,6 +108,15 @@
     {
       "name": "dev",
       "configurePreset": "dev",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "dev-release",
+      "configurePreset": "dev",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }
@@ -104,6 +124,7 @@
     {
       "name": "sanitize",
       "configurePreset": "sanitize",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true
       }
@@ -111,6 +132,7 @@
     {
       "name": "clang-sanitize",
       "configurePreset": "clang-sanitize",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true
       }
@@ -118,6 +140,7 @@
     {
       "name": "fuzz",
       "configurePreset": "fuzz",
+      "configuration": "Debug",
       "output": {
         "outputOnFailure": true
       }
@@ -125,6 +148,7 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }

@@ -6,8 +6,8 @@
 
 ```bash
 cmake --preset dev
-cmake --build --preset dev --target oxq_convert_cbl_writer_compatibility_vectors
-./build/dev/test/oxq_convert_cbl_writer_compatibility_vectors \
+cmake --build --preset dev --config Debug --target oxq_convert_cbl_writer_compatibility_vectors
+./build/dev/test/Debug/oxq_convert_cbl_writer_compatibility_vectors \
   /mnt/c/Temp/oxqf-m5-writer
 sha256sum /mnt/c/Temp/oxqf-m5-writer/*.CBL
 ```

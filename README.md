@@ -12,7 +12,7 @@ Version 1.0.0 implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and th
 
 - CMake 3.23 or newer;
 - a C++20 compiler (GCC, Clang, or MSVC);
-- Ninja;
+- Ninja (the Windows MSVC workflow uses Ninja Multi-Config);
 - Node.js 24.x and npm.
 
 On the supported WSL/Ubuntu development environment, install the native tools from the Ubuntu repositories:
@@ -30,17 +30,24 @@ Node.js is used only for development and test scripts. It is not a runtime depen
 npm ci
 npm test
 cmake --preset dev
-cmake --build --preset dev
+cmake --build --preset dev --config Debug
 ctest --preset dev
+
+# Build Release from the same multi-config build tree.
+cmake --build --preset dev-release
 ```
 
 To validate the sanitizer build:
 
 ```bash
 cmake --preset clang-sanitize
-cmake --build --preset clang-sanitize
+cmake --build --preset clang-sanitize --config Debug
 ctest --preset clang-sanitize
 ```
+
+On Windows, run these commands from a Visual Studio Developer Command Prompt
+or after importing the MSVC environment with `vcvarsall.bat`, with Ninja on
+`PATH`. The `windows-msvc` preset uses Ninja Multi-Config and selects `cl`.
 
 Run the complete WSL quality gate, including GCC and Clang builds, with:
 
@@ -55,7 +62,7 @@ The release gate also runs a bounded libFuzzer regression, builds clean Linux an
 ## Install
 
 ```bash
-cmake --install build/dev --prefix build/install
+cmake --install build/dev --prefix build/install --config Debug
 build/install/bin/oxq --version
 ```
 
