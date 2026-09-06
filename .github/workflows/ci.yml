@@ -22,8 +22,8 @@ jobs:
       - name: Run bounded reader fuzz regression
         run: |
           cmake --preset fuzz
-          cmake --build --preset fuzz --target oxq_core_reader_fuzz
-          ctest --test-dir build/fuzz -R core.reader-fuzz-smoke --output-on-failure
+          cmake --build --preset fuzz --config Debug --target oxq_core_reader_fuzz
+          ctest --test-dir build/fuzz -C Debug -R core.reader-fuzz-smoke --output-on-failure
       - name: Build and verify release candidate
         run: npm run release:package
       - uses: actions/upload-artifact@v7
