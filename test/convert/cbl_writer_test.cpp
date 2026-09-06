@@ -83,12 +83,12 @@ int main() {
       {oxq::core::Side::black, oxq::core::PieceType::king, 85},
   };
   first.move_tree.nodes = {
-      {{}, {}, {1, 3}, {{oxq::core::AnnotationKind::comment, false,
+      {0, {}, {}, {1, 3}, {{oxq::core::AnnotationKind::comment, false,
                          "根注释😀", {}, {}}}},
-      {0, oxq::core::Move{4, 13}, {2}, {}},
-      {1, oxq::core::Move{85, 76}, {},
+      {1, 0, oxq::core::Move{4, 13}, {2}, {}},
+      {2, 1, oxq::core::Move{85, 76}, {},
        {{oxq::core::AnnotationKind::comment, false, "主线\n第二行", {}, {}}}},
-      {0, oxq::core::Move{4, 5}, {}, {}},
+      {3, 0, oxq::core::Move{4, 5}, {}, {}},
   };
   auto second = game("a29ab94d-d463-4b46-8224-eb8d56abeddd", "长注释");
   second.move_tree.nodes[0].annotations.push_back(

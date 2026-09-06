@@ -76,10 +76,10 @@ namespace {
   game.metadata.creator = "OXQF";
   game.initial_position = standard_position();
   game.move_tree.nodes = {
-      {{}, {}, {1}, {}},
-      {0, oxq::core::Move{19, 22}, {2},
+      {0, {}, {}, {1}, {}},
+      {1, 0, oxq::core::Move{19, 22}, {2},
        {{oxq::core::AnnotationKind::comment, false, "炮二平五", {}, {}}}},
-      {1, oxq::core::Move{82, 65}, {}, {}},
+      {2, 1, oxq::core::Move{82, 65}, {}, {}},
   };
   return game;
 }
@@ -99,12 +99,12 @@ namespace {
       {oxq::core::Side::black, oxq::core::PieceType::rook, 71},
   };
   game.move_tree.nodes = {
-      {{}, {}, {1, 3},
+      {0, {}, {}, {1, 3},
        {{oxq::core::AnnotationKind::comment, false, "根注释\n第二行", {}, {}}}},
-      {0, oxq::core::Move{18, 27}, {2},
+      {1, 0, oxq::core::Move{18, 27}, {2},
        {{oxq::core::AnnotationKind::comment, false, "主变化", {}, {}}}},
-      {1, oxq::core::Move{71, 62}, {}, {}},
-      {0, oxq::core::Move{18, 19}, {},
+      {2, 1, oxq::core::Move{71, 62}, {}, {}},
+      {3, 0, oxq::core::Move{18, 19}, {},
        {{oxq::core::AnnotationKind::comment, false, "并列变化😀", {}, {}}}},
   };
   return game;

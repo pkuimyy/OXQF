@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -43,14 +44,57 @@ using oxq::core::ValidationCode;
   root_annotation.language = "zh-Hans";
   game.move_tree.nodes[0].annotations.push_back(std::move(root_annotation));
   MoveNode first_move;
+  first_move.id = 1;
   first_move.parent = 0;
   first_move.move = Move{4, 13};
   game.move_tree.nodes.push_back(std::move(first_move));
   MoveNode variation;
+  variation.id = 2;
   variation.parent = 0;
   variation.move = Move{4, 5};
   game.move_tree.nodes.push_back(std::move(variation));
   return game;
+}
+
+[[nodiscard]] bool stable_node_ids_work() {
+  oxq::core::MoveTree tree;
+  if (tree.nodes.size() != 1 || tree.nodes.front().id != 0 ||
+      !tree.validateInvariants()) {
+    return false;
+  }
+
+  const auto first = tree.addNode(0, Move{0, 1});
+  const auto second = tree.addNode(0, Move{1, 2});
+  const auto descendant = tree.addNode(second, Move{2, 3});
+  const auto last = tree.addNode(0, Move{3, 4});
+  if (first != 1 || second != 2 || descendant != 3 || last != 4 ||
+      !tree.validateInvariants()) {
+    return false;
+  }
+
+  const MoveNode removed = *tree.findNode(first);
+  if (!tree.removeNode(first) || tree.findNode(first) != nullptr ||
+      tree.findNode(second) == nullptr || tree.findNode(descendant) == nullptr ||
+      tree.findNode(last) == nullptr || !tree.validateInvariants()) {
+    return false;
+  }
+
+  const auto after_delete = tree.addNode(0, Move{4, 5});
+  if (after_delete <= first || after_delete <= last ||
+      !tree.validateInvariants()) {
+    return false;
+  }
+
+  if (!tree.restoreNode(removed) || tree.findNode(first) == nullptr ||
+      tree.findNode(first)->parent != std::optional<oxq::core::NodeId>{0} ||
+      !tree.validateInvariants()) {
+    return false;
+  }
+  if (tree.restoreNode(removed) || tree.removeNode(oxq::core::NodeId{9999}) ||
+      tree.findNode(oxq::core::NodeId{9999}) != nullptr) {
+    return false;
+  }
+  return true;
 }
 
 }  // namespace
@@ -134,6 +178,7 @@ int main() {
 
   GameModel unreachable = valid_game();
   MoveNode detached;
+  detached.id = 3;
   detached.parent = 0;
   detached.move = Move{1, 2};
   unreachable.move_tree.nodes.push_back(std::move(detached));
@@ -143,11 +188,13 @@ int main() {
 
   GameModel deep = valid_game();
   deep.move_tree.nodes = {MoveNode{}};
+  deep.move_tree.nodes[0].id = 0;
   constexpr std::size_t depth = 20'000;
   deep.move_tree.nodes.reserve(depth + 1);
   for (std::size_t index = 1; index <= depth; ++index) {
     deep.move_tree.nodes[index - 1].children.push_back(index);
     MoveNode node;
+    node.id = index;
     node.parent = index - 1;
     node.move = Move{0, 1};
     deep.move_tree.nodes.push_back(std::move(node));
@@ -157,6 +204,10 @@ int main() {
   const auto deep_issues = oxq::core::validate(deep, limits);
   if (!has_code(deep_issues, ValidationCode::tree_too_deep)) {
     return 10;
+  }
+
+  if (!stable_node_ids_work()) {
+    return 11;
   }
 
   return 0;

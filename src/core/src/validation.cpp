@@ -96,6 +96,14 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
   } else if (nodes.size() > limits.max_nodes) {
     report(ValidationCode::too_many_nodes, "move_tree.nodes", "node limit exceeded");
   } else {
+    const bool node_ids_valid = game.move_tree.rebuildIndex();
+    if (!node_ids_valid) {
+      report(ValidationCode::duplicate_node_id, "move_tree.nodes", "NodeId values must be unique");
+    }
+    if (nodes[0].id != 0) {
+      report(ValidationCode::invalid_node_id, "move_tree.nodes[0].id",
+             "root NodeId must be zero");
+    }
     if (nodes[0].parent.has_value() || nodes[0].move.has_value()) {
       report(ValidationCode::invalid_root, "move_tree.nodes[0]", "root must not have a parent or move");
     }
@@ -111,8 +119,15 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
     for (std::size_t index = 0; index < nodes.size(); ++index) {
       const auto& node = nodes[index];
       const std::string path = "move_tree.nodes[" + std::to_string(index) + "]";
+      if (index != 0 && node.id == 0) {
+        report(ValidationCode::invalid_node_id, path + ".id",
+               "only the root may use NodeId zero");
+      }
       if (index != 0) {
-        if (!node.parent.has_value() || *node.parent >= nodes.size()) {
+        const auto parent_index = node_ids_valid && node.parent.has_value()
+                                      ? game.move_tree.storageIndex(*node.parent)
+                                      : std::nullopt;
+        if (!node.parent.has_value() || !parent_index.has_value()) {
           report(ValidationCode::invalid_parent, path + ".parent", "non-root node needs a valid parent");
         }
         if (!node.move.has_value()) {
@@ -130,75 +145,81 @@ std::vector<ValidationIssue> validate(const GameModel& game, const ValidationLim
       std::vector<std::size_t> local_children;
       local_children.reserve(node.children.size());
       for (std::size_t child_position = 0; child_position < node.children.size(); ++child_position) {
-        const auto child = node.children[child_position];
-        if (child >= nodes.size()) {
+        const auto child_id = node.children[child_position];
+        const auto child_index = node_ids_valid ? game.move_tree.storageIndex(child_id)
+                                                : std::nullopt;
+        if (!child_index.has_value()) {
           report(ValidationCode::invalid_child,
                  path + ".children[" + std::to_string(child_position) + "]",
-                 "child index is out of range");
+                 "child NodeId does not identify a node");
           continue;
         }
-        if (std::ranges::find(local_children, child) != local_children.end()) {
+        if (std::ranges::find(local_children, *child_index) != local_children.end()) {
           report(ValidationCode::duplicate_child,
                  path + ".children[" + std::to_string(child_position) + "]",
                  "a child cannot appear twice under one parent");
         } else {
-          local_children.push_back(child);
+          local_children.push_back(*child_index);
         }
-        ++incoming[child];
-        if (!nodes[child].parent.has_value() || *nodes[child].parent != index) {
-          report(ValidationCode::invalid_parent, "move_tree.nodes[" + std::to_string(child) + "].parent",
+        ++incoming[*child_index];
+        if (!nodes[*child_index].parent.has_value() || nodes[*child_index].parent != node.id) {
+          report(ValidationCode::invalid_parent,
+                 "move_tree.nodes[" + std::to_string(*child_index) + "].parent",
                  "parent does not agree with the ordered child list");
         }
       }
     }
 
-    for (std::size_t index = 1; index < incoming.size(); ++index) {
-      if (incoming[index] != 1) {
-        report(ValidationCode::invalid_parent, "move_tree.nodes[" + std::to_string(index) + "]",
-               "every non-root node must occur in exactly one child list");
+    if (node_ids_valid) {
+      for (std::size_t index = 1; index < incoming.size(); ++index) {
+        if (incoming[index] != 1) {
+          report(ValidationCode::invalid_parent, "move_tree.nodes[" + std::to_string(index) + "]",
+                 "every non-root node must occur in exactly one child list");
+        }
       }
-    }
-    if (incoming[0] != 0) {
-      report(ValidationCode::invalid_root, "move_tree.nodes[0]", "root cannot occur in a child list");
-    }
+      if (incoming[0] != 0) {
+        report(ValidationCode::invalid_root, "move_tree.nodes[0]", "root cannot occur in a child list");
+      }
 
-    struct Frame {
-      std::size_t node;
-      std::size_t next_child;
-      std::size_t depth;
-    };
-    std::vector<std::uint8_t> color(nodes.size(), 0);
-    std::vector<Frame> stack{{0, 0, 0}};
-    color[0] = 1;
-    bool depth_reported = false;
-    while (!stack.empty()) {
-      auto& frame = stack.back();
-      if (frame.depth > limits.max_tree_depth && !depth_reported) {
-        report(ValidationCode::tree_too_deep, "move_tree", "tree depth limit exceeded");
-        depth_reported = true;
+      struct Frame {
+        std::size_t node;
+        std::size_t next_child;
+        std::size_t depth;
+      };
+      std::vector<std::uint8_t> color(nodes.size(), 0);
+      std::vector<Frame> stack{{0, 0, 0}};
+      color[0] = 1;
+      bool depth_reported = false;
+      while (!stack.empty()) {
+        auto& frame = stack.back();
+        if (frame.depth > limits.max_tree_depth && !depth_reported) {
+          report(ValidationCode::tree_too_deep, "move_tree", "tree depth limit exceeded");
+          depth_reported = true;
+        }
+        if (frame.next_child >= nodes[frame.node].children.size()) {
+          color[frame.node] = 2;
+          stack.pop_back();
+          continue;
+        }
+        const auto child_id = nodes[frame.node].children[frame.next_child++];
+        const auto child = game.move_tree.storageIndex(child_id);
+        if (!child.has_value()) {
+          continue;
+        }
+        if (color[*child] == 1) {
+          report(ValidationCode::tree_cycle, "move_tree.nodes[" + std::to_string(*child) + "]",
+                 "ordered child graph contains a cycle");
+        } else if (color[*child] == 0) {
+          const auto child_depth = frame.depth + 1;
+          color[*child] = 1;
+          stack.push_back({*child, 0, child_depth});
+        }
       }
-      if (frame.next_child >= nodes[frame.node].children.size()) {
-        color[frame.node] = 2;
-        stack.pop_back();
-        continue;
-      }
-      const auto child = nodes[frame.node].children[frame.next_child++];
-      if (child >= nodes.size()) {
-        continue;
-      }
-      if (color[child] == 1) {
-        report(ValidationCode::tree_cycle, "move_tree.nodes[" + std::to_string(child) + "]",
-               "ordered child graph contains a cycle");
-      } else if (color[child] == 0) {
-        const auto child_depth = frame.depth + 1;
-        color[child] = 1;
-        stack.push_back({child, 0, child_depth});
-      }
-    }
-    for (std::size_t index = 0; index < color.size(); ++index) {
-      if (color[index] == 0) {
-        report(ValidationCode::unreachable_node, "move_tree.nodes[" + std::to_string(index) + "]",
-               "node is not reachable from the root");
+      for (std::size_t index = 0; index < color.size(); ++index) {
+        if (color[index] == 0) {
+          report(ValidationCode::unreachable_node, "move_tree.nodes[" + std::to_string(index) + "]",
+                 "node is not reachable from the root");
+        }
       }
     }
   }

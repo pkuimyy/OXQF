@@ -249,7 +249,7 @@ void integer_value(std::string& output, std::string_view name,
   bool first_node = true;
   for (const auto& node : tree.nodes) {
     separator(output, first_node);
-    output += "{\"parent\":";
+    output += "{\"id\":" + std::to_string(node.id) + ",\"parent\":";
     output += node.parent.has_value() ? std::to_string(*node.parent) : "null";
     output += ",\"move\":";
     if (node.move.has_value()) {

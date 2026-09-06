@@ -126,6 +126,7 @@ MoveTreeResult read_move_tree(std::span<const std::byte> input, const ContainerV
   result.value.nodes.clear();
   result.value.nodes.resize(count);
   for (std::size_t index = 0; index < count; ++index) {
+    result.value.nodes[index].id = static_cast<NodeId>(index);
     const std::size_t cursor = kHeaderSize + index * kNodeRecordSize;
     RawNode node;
     node.parent = read_u32(payload, cursor);
@@ -189,7 +190,7 @@ MoveTreeResult read_move_tree(std::span<const std::byte> input, const ContainerV
         return tree_error(CodecErrorCode::invalid_move, section->offset + cursor + 16, "move",
                           "non-root Move must use distinct squares in 0..89, kind zero, and flags zero");
       }
-      result.value.nodes[index].parent = node.parent;
+      result.value.nodes[index].parent = static_cast<NodeId>(node.parent);
       result.value.nodes[index].move = Move{node.from_square, node.to_square};
     }
     raw.push_back(node);
@@ -224,7 +225,7 @@ MoveTreeResult read_move_tree(std::span<const std::byte> input, const ContainerV
                           "child ply must equal parent ply plus one",
                           static_cast<std::uint64_t>(raw[parent].ply) + 1U, raw[child].ply);
       }
-      result.value.nodes[parent].children.push_back(child);
+      result.value.nodes[parent].children.push_back(static_cast<NodeId>(child));
       child = raw[child].next_sibling;
     }
   }
@@ -312,6 +313,10 @@ MoveTreeResult read_move_tree(std::span<const std::byte> input, const ContainerV
       return annotation_error(annotation_next_offset(index) - 4, "annotation_id",
                               "Annotation is not reachable from any Node", index + 1U);
     }
+  }
+  if (!result.value.rebuildIndex()) {
+    return tree_error(CodecErrorCode::invalid_tree, section->offset, "node_id",
+                      "decoded MOVE_TREE NodeIds are not unique");
   }
   return result;
 }

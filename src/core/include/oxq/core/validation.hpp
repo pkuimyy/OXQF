@@ -23,6 +23,8 @@ enum class ValidationCode {
   invalid_square,
   duplicate_square,
   empty_tree,
+  invalid_node_id,
+  duplicate_node_id,
   too_many_nodes,
   invalid_root,
   invalid_parent,

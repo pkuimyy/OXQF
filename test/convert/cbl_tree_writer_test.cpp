@@ -20,15 +20,15 @@ namespace {
   game.metadata.result = oxq::core::GameResult::unknown;
   game.initial_position.fullmove_number = 1;
   game.move_tree.nodes = {
-      {{}, {}, {1, 4}, {{oxq::core::AnnotationKind::comment, false,
+      {0, {}, {}, {1, 4}, {{oxq::core::AnnotationKind::comment, false,
                          "根注释😀", {}, {}}}},
-      {0, oxq::core::Move{10, 20}, {2, 3},
+      {1, 0, oxq::core::Move{10, 20}, {2, 3},
        {{oxq::core::AnnotationKind::comment, false, "主线", {}, {}}}},
-      {1, oxq::core::Move{20, 30}, {}, {}},
-      {1, oxq::core::Move{20, 31}, {},
+      {2, 1, oxq::core::Move{20, 30}, {}, {}},
+      {3, 1, oxq::core::Move{20, 31}, {},
        {{oxq::core::AnnotationKind::comment, false, "变化\n第二行", {}, {}}}},
-      {0, oxq::core::Move{11, 21}, {5}, {}},
-      {4, oxq::core::Move{21, 32}, {}, {}},
+      {4, 0, oxq::core::Move{11, 21}, {5}, {}},
+      {5, 4, oxq::core::Move{21, 32}, {}, {}},
   };
   game.metadata.extensions["org.openxiangqi.cbl"]["source_controls"] =
       std::vector<std::string>{"0100", "0200", "0300", "0400", "0500", "0100"};
@@ -133,7 +133,9 @@ int main() {
   deep.move_tree.nodes.clear();
   constexpr std::size_t depth = 20'000;
   deep.move_tree.nodes.resize(depth + 1U);
+  deep.move_tree.nodes[0].id = 0;
   for (std::size_t index = 1; index <= depth; ++index) {
+    deep.move_tree.nodes[index].id = index;
     deep.move_tree.nodes[index].parent = index - 1U;
     deep.move_tree.nodes[index].move = oxq::core::Move{
         static_cast<std::uint8_t>((index - 1U) % 89U),

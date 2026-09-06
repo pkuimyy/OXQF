@@ -143,7 +143,7 @@ std::vector<std::byte> encode_cbl_record(const core::GameModel& game) {
   }
 
   struct PendingNode {
-    std::size_t node_index;
+    core::NodeId node_id;
     bool has_sibling;
   };
   std::vector<PendingNode> pending;
@@ -156,8 +156,12 @@ std::vector<std::byte> encode_cbl_record(const core::GameModel& game) {
   while (!pending.empty()) {
     const auto task = pending.back();
     pending.pop_back();
-    const auto& node = game.move_tree.nodes[task.node_index];
-    std::uint16_t control = opaque_control(controls, task.node_index);
+    const auto node_index = game.move_tree.storageIndex(task.node_id);
+    if (!node_index.has_value()) {
+      continue;
+    }
+    const auto& node = game.move_tree.nodes[*node_index];
+    std::uint16_t control = opaque_control(controls, *node_index);
     if (node.children.empty()) {
       control |= 0x0001U;
     }

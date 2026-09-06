@@ -54,11 +54,11 @@ int main() {
   const auto original_nodes = noncanonical.move_tree.nodes;
   noncanonical.move_tree.nodes = {
       original_nodes[0], original_nodes[3], original_nodes[1], original_nodes[2]};
-  noncanonical.move_tree.nodes[0].children = {2, 1};
+  noncanonical.move_tree.nodes[0].children = {1, 3};
   noncanonical.move_tree.nodes[1].parent = 0;
   noncanonical.move_tree.nodes[2].parent = 0;
-  noncanonical.move_tree.nodes[2].children = {3};
-  noncanonical.move_tree.nodes[3].parent = 2;
+  noncanonical.move_tree.nodes[2].children = {2};
+  noncanonical.move_tree.nodes[3].parent = 1;
   const auto normalized = oxq::core::write_oxq(noncanonical);
   if (!std::holds_alternative<std::vector<std::byte>>(normalized) ||
       std::get<std::vector<std::byte>>(normalized) != variation_bytes) {

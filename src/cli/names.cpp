@@ -51,6 +51,8 @@ std::string_view name(core::ValidationCode code) noexcept {
       std::string_view{"invalid_square"},
       std::string_view{"duplicate_square"},
       std::string_view{"empty_tree"},
+      std::string_view{"invalid_node_id"},
+      std::string_view{"duplicate_node_id"},
       std::string_view{"too_many_nodes"},
       std::string_view{"invalid_root"},
       std::string_view{"invalid_parent"},

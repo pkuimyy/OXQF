@@ -309,6 +309,9 @@ void collect_strings(const GameModel& game, const std::vector<MetadataField>& me
 
 [[nodiscard]] std::variant<PlannedTree, WriterError> plan_tree(
     const MoveTree& tree, const WriterLimits& limits) {
+  if (!tree.rebuildIndex()) {
+    return failure(WriterErrorCode::invalid_model, "Move Tree contains duplicate NodeIds");
+  }
   PlannedTree result;
   result.new_index.resize(tree.nodes.size());
   result.ply.resize(tree.nodes.size());
@@ -331,15 +334,26 @@ void collect_strings(const GameModel& game, const std::vector<MetadataField>& me
       if (current.ply == std::numeric_limits<std::uint32_t>::max()) {
         return failure(WriterErrorCode::integer_overflow, "Move Tree ply exceeds u32");
       }
-      stack.push_back({*child, current.ply + 1U});
+      const auto child_index = tree.storageIndex(*child);
+      if (!child_index.has_value()) {
+        return failure(WriterErrorCode::invalid_model,
+                       "Move Tree child NodeId does not identify a node");
+      }
+      stack.push_back({*child_index, current.ply + 1U});
     }
   }
 
   for (std::size_t parent = 0; parent < tree.nodes.size(); ++parent) {
     const auto& children = tree.nodes[parent].children;
     for (std::size_t index = 0; index + 1 < children.size(); ++index) {
-      result.next_sibling[children[index]] =
-          static_cast<std::uint32_t>(result.new_index[children[index + 1]]);
+      const auto child = tree.storageIndex(children[index]);
+      const auto next_child = tree.storageIndex(children[index + 1]);
+      if (!child.has_value() || !next_child.has_value()) {
+        return failure(WriterErrorCode::invalid_model,
+                       "Move Tree sibling NodeId does not identify a node");
+      }
+      result.next_sibling[*child] =
+          static_cast<std::uint32_t>(result.new_index[*next_child]);
     }
   }
   std::size_t annotation_id = 1;
@@ -452,12 +466,18 @@ void collect_strings(const GameModel& game, const std::vector<MetadataField>& me
   output.u32(0);
   for (const auto old_index : plan.order) {
     const auto& node = tree.nodes[old_index];
+    const auto parent_index = node.parent.has_value()
+                                  ? tree.storageIndex(*node.parent)
+                                  : std::optional<std::size_t>{};
+    const auto child_index = node.children.empty()
+                                 ? std::optional<std::size_t>{}
+                                 : tree.storageIndex(node.children.front());
     output.u32(node.parent.has_value()
-                   ? static_cast<std::uint32_t>(plan.new_index[*node.parent])
+                   ? static_cast<std::uint32_t>(plan.new_index[*parent_index])
                    : kNoNode);
     output.u32(node.children.empty()
                    ? kNoNode
-                   : static_cast<std::uint32_t>(plan.new_index[node.children.front()]));
+                   : static_cast<std::uint32_t>(plan.new_index[*child_index]));
     output.u32(plan.next_sibling[old_index]);
     output.u32(plan.first_annotation[old_index]);
     if (node.move.has_value()) {

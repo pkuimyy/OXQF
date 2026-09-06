@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -76,19 +77,54 @@ struct Annotation {
   friend bool operator==(const Annotation&, const Annotation&) = default;
 };
 
+using NodeId = std::uint64_t;
+
 struct MoveNode {
-  std::optional<std::size_t> parent;
+  NodeId id{};
+  std::optional<NodeId> parent;
   std::optional<Move> move;
-  std::vector<std::size_t> children;
+  std::vector<NodeId> children;
   std::vector<Annotation> annotations;
 
   friend bool operator==(const MoveNode&, const MoveNode&) = default;
 };
 
 struct MoveTree {
-  std::vector<MoveNode> nodes{MoveNode{}};
+  MoveTree();
 
-  friend bool operator==(const MoveTree&, const MoveTree&) = default;
+  // Storage order is an implementation detail. References between nodes use NodeId.
+  std::vector<MoveNode> nodes;
+
+  [[nodiscard]] MoveNode* findNode(NodeId id);
+  [[nodiscard]] const MoveNode* findNode(NodeId id) const;
+
+  // Internal serialization/validation helper. Call rebuildIndex() after direct storage edits.
+  [[nodiscard]] std::optional<std::size_t> storageIndex(NodeId id) const;
+
+  // Creates a new logical node and obtains a never-before-used NodeId.
+  [[nodiscard]] NodeId addNode(NodeId parent, Move move);
+
+  // Removes a node and its descendants. The removed NodeIds remain reserved.
+  [[nodiscard]] bool removeNode(NodeId id);
+
+  // Restores one previously removed node without allocating a new NodeId.
+  [[nodiscard]] bool restoreNode(MoveNode node);
+
+  // Rebuilds the authoritative NodeId -> storage index map.
+  [[nodiscard]] bool rebuildIndex() const;
+
+  // Checks identity, index-map, and parent/child invariants.
+  [[nodiscard]] bool validateInvariants() const;
+
+  friend bool operator==(const MoveTree& left, const MoveTree& right) {
+    return left.nodes == right.nodes;
+  }
+
+ private:
+  [[nodiscard]] NodeId allocateNodeId();
+
+  mutable std::unordered_map<NodeId, std::size_t> index_by_id_;
+  mutable NodeId next_node_id_{1};
 };
 
 enum class DatePrecision : std::uint8_t {

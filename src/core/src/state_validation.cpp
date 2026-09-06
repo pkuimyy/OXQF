@@ -59,11 +59,15 @@ std::vector<ValidationIssue> validate_state(const GameModel& game) {
       continue;
     }
 
-    const auto child_index = node.children[frame.next_child++];
-    const auto& child = game.move_tree.nodes[child_index];
+    const auto child_id = node.children[frame.next_child++];
+    const auto child_index = game.move_tree.storageIndex(child_id);
+    if (!child_index.has_value()) {
+      continue;
+    }
+    const auto& child = game.move_tree.nodes[*child_index];
     const auto move = *child.move;
     const std::string path =
-        "move_tree.nodes[" + std::to_string(child_index) + "].move";
+        "move_tree.nodes[" + std::to_string(*child_index) + "].move";
     if (!board[move.from_square].has_value()) {
       issues.push_back({ValidationSeverity::error, ValidationCode::missing_source_piece,
                         path + ".from_square", "move origin does not contain a piece"});
@@ -88,7 +92,7 @@ std::vector<ValidationIssue> validate_state(const GameModel& game) {
     board[move.to_square] = moving;
     board[move.from_square].reset();
     side_to_move = opposite(side_to_move);
-    stack.push_back({child_index, 0, undo});
+    stack.push_back({*child_index, 0, undo});
   }
   return issues;
 }

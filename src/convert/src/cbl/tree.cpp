@@ -232,11 +232,12 @@ CblMoveTreeOutcome read_cbl_move_tree(const CblContainerView& container,
     cursor += 4;
 
     core::MoveNode node;
-    node.parent = task.parent;
+    node.id = static_cast<core::NodeId>(result.tree.nodes.size());
+    node.parent = static_cast<core::NodeId>(task.parent);
     node.move = core::Move{to_core_square(from), to_core_square(to)};
     const auto node_index = result.tree.nodes.size();
     result.tree.nodes.push_back(std::move(node));
-    result.tree.nodes[task.parent].children.push_back(node_index);
+    result.tree.nodes[task.parent].children.push_back(static_cast<core::NodeId>(node_index));
     result.source_controls.push_back(control);
 
     if ((control & kHasComment) != 0) {
@@ -265,6 +266,11 @@ CblMoveTreeOutcome read_cbl_move_tree(const CblContainerView& container,
                  entry.resource_offset + cursor, "move_tree_closure",
                  "CBL move tree closed before Record used_size", entry,
                  bytes.size(), cursor);
+  }
+  if (!result.tree.rebuildIndex()) {
+    return error(CblErrorCode::invalid_move_tree,
+                 entry.resource_offset + cursor, "node_id",
+                 "CBL move tree generated duplicate NodeIds", entry);
   }
   return result;
 }
