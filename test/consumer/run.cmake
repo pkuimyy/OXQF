@@ -20,6 +20,16 @@ if(DEFINED OXQF_CONFIG AND NOT OXQF_CONFIG STREQUAL "")
   list(APPEND config_arguments --config "${OXQF_CONFIG}")
 endif()
 
+set(toolchain_arguments)
+if(DEFINED OXQF_CXX_COMPILER AND NOT OXQF_CXX_COMPILER STREQUAL "")
+  list(APPEND toolchain_arguments
+       "-DCMAKE_CXX_COMPILER=${OXQF_CXX_COMPILER}")
+endif()
+if(DEFINED OXQF_MAKE_PROGRAM AND NOT OXQF_MAKE_PROGRAM STREQUAL "")
+  list(APPEND toolchain_arguments
+       "-DCMAKE_MAKE_PROGRAM=${OXQF_MAKE_PROGRAM}")
+endif()
+
 execute_process(
   COMMAND
     "${CMAKE_COMMAND}" --install "${OXQF_BUILD_DIR}"
@@ -55,6 +65,7 @@ execute_process(
     -B "${consumer_build_dir}"
     -G "${OXQF_GENERATOR}"
     "-DCMAKE_PREFIX_PATH=${stage_dir}"
+    ${toolchain_arguments}
   COMMAND_ERROR_IS_FATAL ANY
 )
 
