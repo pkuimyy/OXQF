@@ -7,3 +7,7 @@ find_package(OXQF CONFIG REQUIRED)
 add_executable(oxqf_consumer_smoke main.cpp)
 target_compile_features(oxqf_consumer_smoke PRIVATE cxx_std_20)
 target_link_libraries(oxqf_consumer_smoke PRIVATE OXQF::core OXQF::convert)
+
+add_executable(oxqf_format_consumer_smoke format_main.cpp)
+target_compile_features(oxqf_format_consumer_smoke PRIVATE cxx_std_20)
+target_link_libraries(oxqf_format_consumer_smoke PRIVATE OXQF::format OXQF::convert)

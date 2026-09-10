@@ -1,6 +1,6 @@
 # Development scripts
 
-This directory contains deterministic Node.js tooling used during development and testing. It is not part of the runtime dependency set of `oxq-core`, `oxq-convert`, or `oxq-cli`.
+This directory contains deterministic Node.js tooling used during development and testing. It is not part of the runtime dependency set of `oxq-format`, `oxq-convert`, or `oxq-cli`.
 
 Run the local checks with:
 
@@ -25,10 +25,10 @@ It writes that archive and a platform manifest to `out/release/`.
 manifests, creates CI-only combined evidence, and writes the two-archive
 `SHA256SUMS` used by the tag-driven GitHub Release workflow.
 
-Future OXQ anchor-vector generators belong here and must not call the production `oxq-core` writer.
+Future OXQ anchor-vector generators belong here and must not call the production `oxq-format` writer.
 
 `independent-oxq-reader.mjs` is a separate acceptance implementation derived
-directly from `spec/oxq-v1.md`. It must not import `oxq-core` or the anchor-vector
+directly from `spec/oxq-v1.md`. It must not import `oxq-format` or the anchor-vector
 generator. Its tests compare independently decoded semantics with
 `test/vectors/oxq-v1/manifest.json` so matching Reader/Writer mistakes cannot
 pass only through byte round trips.

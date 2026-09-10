@@ -1,12 +1,17 @@
 # Open Xiangqi Format
 
-OXQF is the reference implementation workspace for the OXQ single-game format. The MVP currently contains three product boundaries:
+OXQF is the reference implementation workspace for the OXQ single-game format. The workspace currently contains three product boundaries:
 
-- `oxq-core`: the format-independent game model and OXQ codec library;
+- `oxq-format`: the persistent game document model and OXQ codec library
+  (`OXQF::core` and `oxq/core/*` remain as 1.x compatibility entry points);
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 
 Version 1.0.0 implements the frozen OXQ v1.0 codec, CBL v3 Reader/Writer, and the `oxq` command-line application. The format specification is published at [spec/oxq-v1.md](spec/oxq-v1.md), and the stable CLI contract is documented at [doc/cli.md](doc/cli.md).
+
+The staged implementation plan for evolving the workspace toward `oxq-format`,
+`oxq-editor`, WASM bindings, and the Web editor starts at
+[doc/implementation/README.md](doc/implementation/README.md).
 
 ## Development prerequisites
 

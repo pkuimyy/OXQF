@@ -1,8 +1,10 @@
-add_library(oxq_core STATIC)
-add_library(OXQF::core ALIAS oxq_core)
+add_library(oxq_format STATIC)
+add_library(OXQF::format ALIAS oxq_format)
+# Source-tree compatibility for consumers migrating from the 1.x core name.
+add_library(OXQF::core ALIAS oxq_format)
 
 target_sources(
-  oxq_core
+  oxq_format
   PRIVATE
     src/codec/annotation.cpp
     src/codec/container.cpp
@@ -35,32 +37,40 @@ target_sources(
       include/oxq/core/validation.hpp
       include/oxq/core/validator.hpp
       include/oxq/core/writer.hpp
+      include/oxq/format/codec_error.hpp
+      include/oxq/format/document.hpp
+      include/oxq/format/product.hpp
+      include/oxq/format/reader.hpp
+      include/oxq/format/state_validation.hpp
+      include/oxq/format/validation.hpp
+      include/oxq/format/validator.hpp
+      include/oxq/format/writer.hpp
 )
 
-target_compile_features(oxq_core PUBLIC cxx_std_20)
-target_include_directories(oxq_core PRIVATE src)
-target_compile_definitions(oxq_core PRIVATE OXQF_PROJECT_VERSION="${PROJECT_VERSION}")
+target_compile_features(oxq_format PUBLIC cxx_std_20)
+target_include_directories(oxq_format PRIVATE src)
+target_compile_definitions(oxq_format PRIVATE OXQF_PROJECT_VERSION="${PROJECT_VERSION}")
 
 set_target_properties(
-  oxq_core
+  oxq_format
   PROPERTIES
-    EXPORT_NAME core
-    OUTPUT_NAME oxq-core
+    EXPORT_NAME format
+    OUTPUT_NAME oxq-format
     POSITION_INDEPENDENT_CODE ON
 )
 
-oxqf_set_project_warnings(oxq_core)
-oxqf_enable_sanitizers(oxq_core)
+oxqf_set_project_warnings(oxq_format)
+oxqf_enable_sanitizers(oxq_format)
 
 if(OXQF_BUILD_FUZZERS)
   if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(FATAL_ERROR "OXQF_BUILD_FUZZERS requires Clang")
   endif()
-  target_compile_options(oxq_core PRIVATE -fsanitize=fuzzer-no-link)
+  target_compile_options(oxq_format PRIVATE -fsanitize=fuzzer-no-link)
 endif()
 
 install(
-  TARGETS oxq_core
+  TARGETS oxq_format
   EXPORT OXQFTargets
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT Development
   FILE_SET HEADERS DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}" COMPONENT Development

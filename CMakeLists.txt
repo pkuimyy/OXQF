@@ -88,6 +88,12 @@ install(
   COMPONENT Documentation
 )
 install(
+  DIRECTORY doc/implementation/
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/oxq/doc/implementation"
+  COMPONENT Documentation
+  FILES_MATCHING PATTERN "*.md"
+)
+install(
   DIRECTORY spec/
   DESTINATION "${CMAKE_INSTALL_DATADIR}/oxq/spec"
   COMPONENT Documentation

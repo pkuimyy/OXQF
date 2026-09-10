@@ -4,6 +4,12 @@ oxqf_set_project_warnings(oxq_core_header_smoke)
 oxqf_enable_sanitizers(oxq_core_header_smoke)
 add_test(NAME core.header-smoke COMMAND oxq_core_header_smoke)
 
+add_executable(oxq_format_header_smoke format/header_smoke.cpp)
+target_link_libraries(oxq_format_header_smoke PRIVATE OXQF::format)
+oxqf_set_project_warnings(oxq_format_header_smoke)
+oxqf_enable_sanitizers(oxq_format_header_smoke)
+add_test(NAME format.header-smoke COMMAND oxq_format_header_smoke)
+
 add_executable(oxq_core_game_model_test core/game_model_test.cpp)
 target_link_libraries(oxq_core_game_model_test PRIVATE OXQF::core)
 oxqf_set_project_warnings(oxq_core_game_model_test)

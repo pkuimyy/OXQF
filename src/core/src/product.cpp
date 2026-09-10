@@ -3,7 +3,7 @@
 namespace oxq::core {
 
 std::string_view product_name() noexcept {
-  return "oxq-core";
+  return "oxq-format";
 }
 
 std::string_view product_version() noexcept {

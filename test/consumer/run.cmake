@@ -75,3 +75,28 @@ execute_process(
     ${config_arguments}
   COMMAND_ERROR_IS_FATAL ANY
 )
+
+if(WIN32)
+  set(consumer_executable_suffix ".exe")
+else()
+  set(consumer_executable_suffix "")
+endif()
+
+foreach(consumer_target IN ITEMS
+    oxqf_consumer_smoke
+    oxqf_format_consumer_smoke)
+  if(DEFINED OXQF_CONFIG AND NOT OXQF_CONFIG STREQUAL "")
+    set(consumer_executable
+        "${consumer_build_dir}/${OXQF_CONFIG}/${consumer_target}${consumer_executable_suffix}")
+  else()
+    set(consumer_executable
+        "${consumer_build_dir}/${consumer_target}${consumer_executable_suffix}")
+  endif()
+  if(NOT EXISTS "${consumer_executable}")
+    message(FATAL_ERROR "Consumer executable was not built: ${consumer_executable}")
+  endif()
+  execute_process(
+    COMMAND "${consumer_executable}"
+    COMMAND_ERROR_IS_FATAL ANY
+  )
+endforeach()

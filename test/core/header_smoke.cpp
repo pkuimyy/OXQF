@@ -18,7 +18,7 @@ int main() {
       !std::holds_alternative<oxq::core::ReaderDiagnostics>(validator)) {
     return 1;
   }
-  if (oxq::core::product_name() != std::string_view{"oxq-core"}) {
+  if (oxq::core::product_name() != std::string_view{"oxq-format"}) {
     return 1;
   }
   return oxq::core::product_version().empty() ? 1 : 0;

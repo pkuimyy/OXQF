@@ -28,10 +28,12 @@ oxq-1.0.0-windows-x64-msvc.zip
 SHA256SUMS
 ```
 
-Each archive contains the `oxq` CLI, `oxq-core` and `oxq-convert` static
+Each archive contains the `oxq` CLI, `oxq-format` and `oxq-convert` static
 libraries, public headers, the relocatable `OXQF` CMake package, documentation,
 specifications, project-authored test vectors, and an internal manifest. There
-is no separate CLI or SDK archive.
+is no separate CLI or SDK archive. During the 1.x migration window the package
+also exposes `OXQF::core` and `oxq/core/*` as compatibility entry points; they
+resolve to the same `oxq-format` binary.
 
 ```text
 oxq-1.0.0-linux-gcc-x86_64/

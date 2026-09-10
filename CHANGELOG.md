@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Introduce the `oxq-format` library name, `OXQF::format` CMake target,
+  `oxq/format/*` headers, and the `oxq::format` source namespace facade.
+- Keep `OXQF::core` and `oxq/core/*` as compatibility entry points backed by
+  the same `oxq-format` binary until the next major version.
+- Add build-tree and installed-package smoke coverage for both the new format
+  API and the legacy core API.
+
 ## 1.0.0 — 2026-09-04
 
 - Freeze and publish the independently implementable OXQ v1.0 specification and test vectors.

@@ -9,4 +9,14 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/OXQFTargets.cmake")
 
+# Compatibility target for consumers of OXQF 1.x. It intentionally resolves to
+# the same binary as OXQF::format and will be removed in the next major version.
+if(TARGET OXQF::format AND NOT TARGET OXQF::core)
+  add_library(OXQF::core INTERFACE IMPORTED)
+  set_property(
+    TARGET OXQF::core
+    PROPERTY INTERFACE_LINK_LIBRARIES OXQF::format
+  )
+endif()
+
 check_required_components(OXQF)

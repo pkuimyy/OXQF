@@ -77,6 +77,7 @@ const distributionFiles = [
   "share/oxq/test-vectors/oxq-v1/manifest.json",
   "share/oxq/test-vectors/cbl-v3/SHA256SUMS",
   "include/oxq/core/writer.hpp",
+  "include/oxq/format/writer.hpp",
   "include/oxq/convert/cbl_writer.hpp",
   "lib/cmake/OXQF/OXQFConfig.cmake",
 ];
@@ -85,14 +86,14 @@ test("complete developer distribution contract is audited", () => {
   const linux = [
     ...distributionFiles,
     "bin/oxq",
-    "lib/liboxq-core.a",
+    "lib/liboxq-format.a",
     "lib/liboxq-convert.a",
   ];
   assert.doesNotThrow(() => auditReleaseFiles(linux, false));
   assert.doesNotThrow(() => auditReleaseFiles([
     ...distributionFiles,
     "bin/oxq.exe",
-    "lib/oxq-core.lib",
+    "lib/oxq-format.lib",
     "lib/oxq-convert.lib",
   ], true));
   assert.throws(() => auditReleaseFiles(linux.filter((file) => file !== "bin/oxq"), false), /bin\/oxq/);
@@ -105,7 +106,7 @@ test("internal distribution manifest records ABI and runtime contracts", () => {
     version: "1.0.0",
     format_version: "1",
     platform: { os: "linux", arch: "x86_64", toolchain: "gcc" },
-    components: ["oxq-cli", "oxq-core", "oxq-convert", "cmake-package", "test-vectors", "documentation"],
+    components: ["oxq-cli", "oxq-format", "oxq-convert", "cmake-package", "test-vectors", "documentation"],
     runtime: { cpp_standard: "C++20", glibc_min: "2.35" },
   });
   assert.equal(

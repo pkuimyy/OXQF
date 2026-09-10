@@ -77,7 +77,7 @@ export function distributionManifest(version, platform) {
     platform: platformMetadata,
     components: [
       "oxq-cli",
-      "oxq-core",
+      "oxq-format",
       "oxq-convert",
       "cmake-package",
       "test-vectors",
@@ -125,10 +125,11 @@ export function auditReleaseFiles(files, windows = process.platform === "win32")
   requirePath(files, "root README", (file) => file === "README.md");
   requirePath(files, "root changelog", (file) => file === "CHANGELOG.md");
   requirePath(files, "root license", (file) => file === "LICENSE");
-  requirePath(files, "core headers", (file) => file === "include/oxq/core/writer.hpp");
+  requirePath(files, "format headers", (file) => file === "include/oxq/format/writer.hpp");
+  requirePath(files, "core compatibility headers", (file) => file === "include/oxq/core/writer.hpp");
   requirePath(files, "convert headers", (file) => file === "include/oxq/convert/cbl_writer.hpp");
   requirePath(files, "CMake package", (file) => file === "lib/cmake/OXQF/OXQFConfig.cmake");
-  requirePath(files, "oxq-core library", (file) => /(^|\/)lib\/?(lib)?oxq-core\.(a|lib)$/i.test(file));
+  requirePath(files, "oxq-format library", (file) => /(^|\/)lib\/?(lib)?oxq-format\.(a|lib)$/i.test(file));
   requirePath(files, "oxq-convert library", (file) => /(^|\/)lib\/?(lib)?oxq-convert\.(a|lib)$/i.test(file));
   requirePath(files, "distribution manifest", (file) => file === "share/oxq/manifest.json");
   requirePath(files, "CLI documentation", (file) => file === "share/oxq/doc/cli.md");

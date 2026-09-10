@@ -34,7 +34,7 @@ constexpr std::array<std::size_t, 4> kHyphenPositions{8, 13, 18, 23};
 MoveTree::MoveTree() {
   nodes.push_back(MoveNode{});
   nodes.front().id = 0;
-  rebuildIndex();
+  static_cast<void>(rebuildIndex());
 }
 
 bool MoveTree::rebuildIndex() const {

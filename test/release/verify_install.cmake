@@ -6,6 +6,8 @@ set(required_files
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/core/game_model.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/core/reader.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/core/writer.hpp"
+  "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/format/document.hpp"
+  "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/format/writer.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_reader.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_writer.hpp"
   "${stage_dir}/${OXQF_INSTALL_LIBDIR}/cmake/OXQF/OXQFConfig.cmake"
@@ -29,10 +31,10 @@ foreach(required_file IN LISTS required_files)
   endif()
 endforeach()
 
-file(GLOB core_libraries "${stage_dir}/${OXQF_INSTALL_LIBDIR}/*oxq-core*")
+file(GLOB format_libraries "${stage_dir}/${OXQF_INSTALL_LIBDIR}/*oxq-format*")
 file(GLOB convert_libraries "${stage_dir}/${OXQF_INSTALL_LIBDIR}/*oxq-convert*")
-if(NOT core_libraries OR NOT convert_libraries)
-  message(FATAL_ERROR "Installed release is missing oxq-core or oxq-convert")
+if(NOT format_libraries OR NOT convert_libraries)
+  message(FATAL_ERROR "Installed release is missing oxq-format or oxq-convert")
 endif()
 
 file(GLOB_RECURSE installed_paths RELATIVE "${stage_dir}" "${stage_dir}/*")

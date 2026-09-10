@@ -27,7 +27,7 @@ target_sources(
 target_compile_features(oxq_convert PUBLIC cxx_std_20)
 target_include_directories(oxq_convert PRIVATE src)
 target_compile_definitions(oxq_convert PRIVATE OXQF_PROJECT_VERSION="${PROJECT_VERSION}")
-target_link_libraries(oxq_convert PUBLIC OXQF::core)
+target_link_libraries(oxq_convert PUBLIC OXQF::format)
 
 set_target_properties(
   oxq_convert
