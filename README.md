@@ -1,9 +1,10 @@
 # Open Xiangqi Format
 
-OXQF is the reference implementation workspace for the OXQ single-game format. The workspace currently contains three product boundaries:
+OXQF is the reference implementation workspace for the OXQ single-game format. The workspace currently contains four product boundaries:
 
 - `oxq-format`: the persistent game document model and OXQ codec library
   (`OXQF::core` and `oxq/core/*` remain as 1.x compatibility entry points);
+- `oxq-editor`: the UI-independent editable-document session engine;
 - `oxq-convert`: external-format adapters and conversion reports;
 - `oxq-cli`: the thin `oxq` command-line application.
 

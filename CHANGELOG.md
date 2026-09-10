@@ -8,6 +8,12 @@
   the same `oxq-format` binary until the next major version.
 - Add build-tree and installed-package smoke coverage for both the new format
   API and the legacy core API.
+- Add the first `oxq-editor` library increment with validated document opening,
+  node checkout, monotonic session revisions, position snapshots, document
+  export, and revision-safe save checkpoints.
+- Add atomic move insertion with duplicate/revision validation, structured
+  change sets, stable NodeId-preserving Undo/Redo, and checkpoint-aware dirty
+  state.
 
 ## 1.0.0 — 2026-09-04
 

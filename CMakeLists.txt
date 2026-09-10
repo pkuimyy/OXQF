@@ -34,6 +34,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(OXQFProjectOptions)
 
 add_subdirectory(src/core)
+add_subdirectory(src/editor)
 add_subdirectory(src/convert)
 add_subdirectory(src/cli)
 

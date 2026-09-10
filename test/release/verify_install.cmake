@@ -8,6 +8,7 @@ set(required_files
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/core/writer.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/format/document.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/format/writer.hpp"
+  "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/editor/editor_session.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_reader.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_writer.hpp"
   "${stage_dir}/${OXQF_INSTALL_LIBDIR}/cmake/OXQF/OXQFConfig.cmake"
@@ -32,9 +33,10 @@ foreach(required_file IN LISTS required_files)
 endforeach()
 
 file(GLOB format_libraries "${stage_dir}/${OXQF_INSTALL_LIBDIR}/*oxq-format*")
+file(GLOB editor_libraries "${stage_dir}/${OXQF_INSTALL_LIBDIR}/*oxq-editor*")
 file(GLOB convert_libraries "${stage_dir}/${OXQF_INSTALL_LIBDIR}/*oxq-convert*")
-if(NOT format_libraries OR NOT convert_libraries)
-  message(FATAL_ERROR "Installed release is missing oxq-format or oxq-convert")
+if(NOT format_libraries OR NOT editor_libraries OR NOT convert_libraries)
+  message(FATAL_ERROR "Installed release is missing an OXQ library")
 endif()
 
 file(GLOB_RECURSE installed_paths RELATIVE "${stage_dir}" "${stage_dir}/*")

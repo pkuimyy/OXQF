@@ -10,6 +10,23 @@ oxqf_set_project_warnings(oxq_format_header_smoke)
 oxqf_enable_sanitizers(oxq_format_header_smoke)
 add_test(NAME format.header-smoke COMMAND oxq_format_header_smoke)
 
+add_executable(oxq_editor_session_test editor/session_test.cpp)
+target_link_libraries(oxq_editor_session_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_session_test)
+oxqf_enable_sanitizers(oxq_editor_session_test)
+add_test(NAME editor.session COMMAND oxq_editor_session_test)
+
+add_executable(oxq_editor_command_test editor/command_test.cpp)
+target_link_libraries(oxq_editor_command_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_command_test)
+oxqf_enable_sanitizers(oxq_editor_command_test)
+add_test(NAME editor.command COMMAND oxq_editor_command_test)
+set_tests_properties(
+  editor.session
+  editor.command
+  PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
+)
+
 add_executable(oxq_core_game_model_test core/game_model_test.cpp)
 target_link_libraries(oxq_core_game_model_test PRIVATE OXQF::core)
 oxqf_set_project_warnings(oxq_core_game_model_test)

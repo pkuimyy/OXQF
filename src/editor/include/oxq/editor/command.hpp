@@ -1,0 +1,44 @@
+#pragma once
+
+#include <oxq/format/document.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <variant>
+#include <vector>
+
+namespace oxq::editor {
+
+struct InsertMoveCommand {
+  format::NodeId parent{0};
+  format::Move move;
+  std::optional<std::size_t> sibling_index;
+
+  friend bool operator==(const InsertMoveCommand&, const InsertMoveCommand&) = default;
+};
+
+using Command = std::variant<InsertMoveCommand>;
+
+struct ChangeSet {
+  std::uint64_t before_revision{0};
+  std::uint64_t after_revision{0};
+  std::vector<format::NodeId> inserted;
+  std::vector<format::NodeId> removed;
+  std::vector<format::NodeId> updated;
+  std::vector<format::NodeId> reordered_parents;
+  bool metadata_changed{false};
+  bool selection_changed{false};
+
+  friend bool operator==(const ChangeSet&, const ChangeSet&) = default;
+};
+
+struct CommandResult {
+  std::uint64_t revision{0};
+  ChangeSet changes;
+  std::optional<format::NodeId> created_node;
+
+  friend bool operator==(const CommandResult&, const CommandResult&) = default;
+};
+
+}  // namespace oxq::editor

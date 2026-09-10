@@ -1,6 +1,6 @@
 # Development scripts
 
-This directory contains deterministic Node.js tooling used during development and testing. It is not part of the runtime dependency set of `oxq-format`, `oxq-convert`, or `oxq-cli`.
+This directory contains deterministic Node.js tooling used during development and testing. It is not part of the runtime dependency set of `oxq-format`, `oxq-editor`, `oxq-convert`, or `oxq-cli`.
 
 Run the local checks with:
 
