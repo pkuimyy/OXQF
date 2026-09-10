@@ -129,6 +129,13 @@ struct ChangeSet {
 
 事件在命令成功提交后同步产生。宿主可随后投递到 Worker/UI 消息队列，领域层本身不依赖浏览器事件循环。
 
+首版 `VariationGraphProjection` 严格保持 OXQ 有序树语义，不创建共享子图。投影以
+preorder 返回节点和父子边，携带相对深度、原 sibling index、主变化标记和当前路径
+标记。`VariationGraphQuery` 支持子树起点、最大深度和最大节点数；会话级
+`max_projection_nodes` 默认 10,000，达到任一边界时返回 `truncated=true`，而不是
+构造无界快照。`SessionSnapshot` 包含当前节点摘要及默认树投影；更大的 UI 视口应直接
+使用分页/截断查询。
+
 ## 错误分类
 
 | 类别 | 示例 | 是否改变状态 |

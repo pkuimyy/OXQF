@@ -2,6 +2,7 @@
 
 #include <oxq/editor/command.hpp>
 #include <oxq/editor/error.hpp>
+#include <oxq/editor/variation_graph.hpp>
 #include <oxq/format/document.hpp>
 
 #include <cstdint>
@@ -23,6 +24,7 @@ struct SessionOptions {
   std::size_t max_history_entries{1024};
   std::size_t max_history_bytes{64U * 1024U * 1024U};
   std::size_t max_position_cache_entries{4096};
+  std::size_t max_projection_nodes{10000};
 };
 
 struct SessionState {
@@ -38,6 +40,8 @@ struct SessionState {
 struct SessionSnapshot {
   SessionState state;
   format::Position position;
+  NodeSummary current;
+  VariationGraphProjection variation_graph;
 
   friend bool operator==(const SessionSnapshot&, const SessionSnapshot&) = default;
 };
@@ -66,6 +70,10 @@ class EditorSession {
   [[nodiscard]] std::variant<format::Position, EditorError> position_at(
       format::NodeId node) const;
   [[nodiscard]] PositionCacheStats position_cache_stats() const noexcept;
+  [[nodiscard]] NodeSummaryOutcome node_summary(format::NodeId node) const;
+  [[nodiscard]] NodePathOutcome path_to(format::NodeId node) const;
+  [[nodiscard]] VariationGraphOutcome variation_graph(
+      VariationGraphQuery query = {}) const;
 
   [[nodiscard]] std::variant<CommandResult, EditorError> execute(
       Command command,

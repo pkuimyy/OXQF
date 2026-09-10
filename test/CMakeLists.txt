@@ -68,6 +68,11 @@ target_link_libraries(oxq_editor_position_cache_test PRIVATE OXQF::editor)
 oxqf_set_project_warnings(oxq_editor_position_cache_test)
 oxqf_enable_sanitizers(oxq_editor_position_cache_test)
 add_test(NAME editor.position-cache COMMAND oxq_editor_position_cache_test)
+add_executable(oxq_editor_variation_graph_test editor/variation_graph_test.cpp)
+target_link_libraries(oxq_editor_variation_graph_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_variation_graph_test)
+oxqf_enable_sanitizers(oxq_editor_variation_graph_test)
+add_test(NAME editor.variation-graph COMMAND oxq_editor_variation_graph_test)
 set_tests_properties(
   editor.session
   editor.command
@@ -79,6 +84,7 @@ set_tests_properties(
   editor.history-limits
   editor.history-sequence
   editor.position-cache
+  editor.variation-graph
   PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
 )
 

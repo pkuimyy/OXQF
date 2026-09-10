@@ -6,6 +6,7 @@ target_sources(
   PRIVATE
     src/editor_session.cpp
     src/product.cpp
+    src/variation_graph.cpp
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include
@@ -14,6 +15,7 @@ target_sources(
       include/oxq/editor/editor_session.hpp
       include/oxq/editor/error.hpp
       include/oxq/editor/product.hpp
+      include/oxq/editor/variation_graph.hpp
 )
 
 target_compile_features(oxq_editor PUBLIC cxx_std_20)

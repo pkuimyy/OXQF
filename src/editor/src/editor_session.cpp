@@ -301,7 +301,18 @@ SnapshotOutcome EditorSession::snapshot() const {
   if (std::holds_alternative<EditorError>(position)) {
     return std::get<EditorError>(std::move(position));
   }
-  return SessionSnapshot{state_, std::get<format::Position>(std::move(position))};
+  auto current = node_summary(state_.current_node);
+  if (std::holds_alternative<EditorError>(current)) {
+    return std::get<EditorError>(std::move(current));
+  }
+  auto graph = variation_graph();
+  if (std::holds_alternative<EditorError>(graph)) {
+    return std::get<EditorError>(std::move(graph));
+  }
+  return SessionSnapshot{
+      state_, std::get<format::Position>(std::move(position)),
+      std::get<NodeSummary>(std::move(current)),
+      std::get<VariationGraphProjection>(std::move(graph))};
 }
 
 std::variant<format::Position, EditorError> EditorSession::position_at(
