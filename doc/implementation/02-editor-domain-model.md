@@ -104,6 +104,12 @@ initial_position --apply path--> PositionAt(node)
 - 缓存不序列化、不进入命令历史、不影响相等性；
 - 先保证正确性，再依据基准决定是否加入祖先跳表或增量棋盘。
 
+当前 native API 通过 `EditorSession::position_at(NodeId)` 查询任意节点，并以
+`PositionCacheStats` 暴露命中、未命中和当前条目数，便于基准与诊断。缓存默认最多
+4096 项，可通过 `SessionOptions::max_position_cache_entries` 调整或设为 0 禁用；
+达到上限时整批淘汰，以保持实现确定且有界。删除和替换只失效受影响子树，插入、
+注释、元数据、分支排序和 checkout 保留仍有效条目，复合命令使用保守的整体失效。
+
 ## 快照与事件
 
 `SessionSnapshot` 至少包含：revision、current node、dirty、undo/redo 能力、当前局面、当前节点摘要和树投影。大文档不应在每次事件复制全部文档；事件包含变化集合：

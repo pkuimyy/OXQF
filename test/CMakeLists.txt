@@ -63,6 +63,11 @@ target_link_libraries(oxq_editor_history_sequence_test PRIVATE OXQF::editor)
 oxqf_set_project_warnings(oxq_editor_history_sequence_test)
 oxqf_enable_sanitizers(oxq_editor_history_sequence_test)
 add_test(NAME editor.history-sequence COMMAND oxq_editor_history_sequence_test)
+add_executable(oxq_editor_position_cache_test editor/position_cache_test.cpp)
+target_link_libraries(oxq_editor_position_cache_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_position_cache_test)
+oxqf_enable_sanitizers(oxq_editor_position_cache_test)
+add_test(NAME editor.position-cache COMMAND oxq_editor_position_cache_test)
 set_tests_properties(
   editor.session
   editor.command
@@ -73,6 +78,7 @@ set_tests_properties(
   editor.compound-command
   editor.history-limits
   editor.history-sequence
+  editor.position-cache
   PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
 )
 

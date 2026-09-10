@@ -204,7 +204,7 @@ void merge_changes(ChangeSet& target, const ChangeSet& source) {
   return bytes;
 }
 
-[[nodiscard]] std::variant<format::Position, EditorError> position_at(
+[[nodiscard]] std::variant<format::Position, EditorError> compute_position(
     const format::GameDocument& document, format::NodeId target) {
   std::unordered_map<format::NodeId, const format::MoveNode*> nodes;
   nodes.reserve(document.move_tree.nodes.size());
@@ -297,11 +297,73 @@ const SessionState& EditorSession::state() const noexcept {
 }
 
 SnapshotOutcome EditorSession::snapshot() const {
-  auto position = position_at(document_, state_.current_node);
+  auto position = position_at(state_.current_node);
   if (std::holds_alternative<EditorError>(position)) {
     return std::get<EditorError>(std::move(position));
   }
   return SessionSnapshot{state_, std::get<format::Position>(std::move(position))};
+}
+
+std::variant<format::Position, EditorError> EditorSession::position_at(
+    format::NodeId node) const {
+  const auto cached = position_cache_.find(node);
+  if (cached != position_cache_.end()) {
+    ++position_cache_hits_;
+    return cached->second;
+  }
+
+  ++position_cache_misses_;
+  auto position = compute_position(document_, node);
+  if (std::holds_alternative<EditorError>(position) ||
+      options_.max_position_cache_entries == 0) {
+    return position;
+  }
+  try {
+    if (position_cache_.size() >= options_.max_position_cache_entries) {
+      position_cache_.clear();
+    }
+    position_cache_.insert_or_assign(
+        node, std::get<format::Position>(position));
+  } catch (const std::bad_alloc&) {
+    position_cache_.clear();
+  }
+  return position;
+}
+
+PositionCacheStats EditorSession::position_cache_stats() const noexcept {
+  return PositionCacheStats{position_cache_.size(), position_cache_hits_,
+                            position_cache_misses_};
+}
+
+void EditorSession::invalidate_position_cache(
+    const std::vector<format::NodeId>& nodes) {
+  for (const auto node : nodes) {
+    position_cache_.erase(node);
+  }
+}
+
+void EditorSession::invalidate_position_subtree(format::NodeId root) {
+  for (auto iterator = position_cache_.begin();
+       iterator != position_cache_.end();) {
+    auto current = iterator->first;
+    bool affected = false;
+    while (true) {
+      if (current == root) {
+        affected = true;
+        break;
+      }
+      const auto* node = document_.move_tree.findNode(current);
+      if (node == nullptr || !node->parent.has_value()) {
+        break;
+      }
+      current = *node->parent;
+    }
+    if (affected) {
+      iterator = position_cache_.erase(iterator);
+    } else {
+      ++iterator;
+    }
+  }
 }
 
 bool EditorSession::restore_subtree(format::GameDocument& document,
@@ -473,6 +535,7 @@ CommandOutcome EditorSession::execute(
     }
 
     document_ = std::move(temporary.document_);
+    position_cache_.clear();
     state_.current_node = after_current;
     state_.revision = before_revision + 1;
     current_document_token_ = after_token;
@@ -794,6 +857,7 @@ CommandOutcome EditorSession::execute(
       return *std::move(error);
     }
     document_ = std::move(working);
+    invalidate_position_subtree(replacement.node);
     ++state_.revision;
     current_document_token_ = after_token;
     ++next_document_token_;
@@ -905,6 +969,7 @@ CommandOutcome EditorSession::execute(
       return *std::move(error);
     }
     document_ = std::move(working);
+    invalidate_position_cache(removed_order);
     state_.current_node = after_current;
     ++state_.revision;
     current_document_token_ = after_token;
@@ -1109,6 +1174,15 @@ CommandOutcome EditorSession::undo(
 
   const auto before_revision = state_.revision;
   document_ = std::move(working);
+  if (entry.kind == HistoryKind::compound) {
+    position_cache_.clear();
+  } else if (entry.kind == HistoryKind::replace_move) {
+    invalidate_position_subtree(entry.root);
+  } else if (entry.kind == HistoryKind::insert) {
+    for (const auto& stored : entry.nodes) {
+      position_cache_.erase(stored.node.id);
+    }
+  }
   state_.current_node = entry.before_current;
   ++state_.revision;
   current_document_token_ = entry.before_token;
@@ -1226,6 +1300,15 @@ CommandOutcome EditorSession::redo(
 
   const auto before_revision = state_.revision;
   document_ = std::move(working);
+  if (entry.kind == HistoryKind::compound) {
+    position_cache_.clear();
+  } else if (entry.kind == HistoryKind::replace_move) {
+    invalidate_position_subtree(entry.root);
+  } else if (entry.kind == HistoryKind::delete_subtree) {
+    for (const auto& stored : entry.nodes) {
+      position_cache_.erase(stored.node.id);
+    }
+  }
   state_.current_node = entry.after_current;
   ++state_.revision;
   current_document_token_ = entry.after_token;

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -21,6 +22,7 @@ struct SessionOptions {
   std::size_t max_compound_commands{1024};
   std::size_t max_history_entries{1024};
   std::size_t max_history_bytes{64U * 1024U * 1024U};
+  std::size_t max_position_cache_entries{4096};
 };
 
 struct SessionState {
@@ -40,6 +42,15 @@ struct SessionSnapshot {
   friend bool operator==(const SessionSnapshot&, const SessionSnapshot&) = default;
 };
 
+struct PositionCacheStats {
+  std::size_t entries{0};
+  std::uint64_t hits{0};
+  std::uint64_t misses{0};
+
+  friend bool operator==(const PositionCacheStats&,
+                         const PositionCacheStats&) = default;
+};
+
 class EditorSession {
  public:
   EditorSession(const EditorSession&) = delete;
@@ -52,6 +63,9 @@ class EditorSession {
   [[nodiscard]] format::GameDocument export_document() const;
   [[nodiscard]] const SessionState& state() const noexcept;
   [[nodiscard]] std::variant<SessionSnapshot, EditorError> snapshot() const;
+  [[nodiscard]] std::variant<format::Position, EditorError> position_at(
+      format::NodeId node) const;
+  [[nodiscard]] PositionCacheStats position_cache_stats() const noexcept;
 
   [[nodiscard]] std::variant<CommandResult, EditorError> execute(
       Command command,
@@ -114,12 +128,17 @@ class EditorSession {
   std::uint64_t current_document_token_{0};
   std::uint64_t saved_document_token_{0};
   std::uint64_t next_document_token_{1};
+  mutable std::unordered_map<format::NodeId, format::Position> position_cache_;
+  mutable std::uint64_t position_cache_hits_{0};
+  mutable std::uint64_t position_cache_misses_{0};
 
   [[nodiscard]] bool restore_subtree(format::GameDocument& document,
                                      const HistoryEntry& entry) const;
   [[nodiscard]] std::size_t estimate_history_bytes(
       const HistoryEntry& entry) const noexcept;
   [[nodiscard]] Status store_history(HistoryEntry entry);
+  void invalidate_position_cache(const std::vector<format::NodeId>& nodes);
+  void invalidate_position_subtree(format::NodeId root);
 
   friend std::variant<EditorSession, EditorError> open_document(
       format::GameDocument, SessionOptions);
