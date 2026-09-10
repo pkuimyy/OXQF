@@ -13,6 +13,8 @@
 
 namespace oxq::editor {
 
+class EditorSession;
+
 struct ConsoleSpan {
   std::size_t start{0};
   std::size_t length{0};
@@ -126,5 +128,76 @@ using ConsoleParseOutcome = std::variant<ConsoleRequest, ConsoleError>;
     const std::vector<ConsoleToken>& tokens);
 [[nodiscard]] ConsoleParseOutcome parse_console(
     std::string_view line, ConsoleLimits limits = {});
+
+enum class ConsoleResultKind {
+  status,
+  tree,
+  node,
+  validation,
+  command,
+  checkout,
+  help,
+};
+
+struct ConsoleNodeDetails {
+  NodeSummary summary;
+  format::Position position;
+  std::vector<format::Annotation> annotations;
+
+  friend bool operator==(const ConsoleNodeDetails&,
+                         const ConsoleNodeDetails&) = default;
+};
+
+struct ConsoleSessionState {
+  format::NodeId current_node{0};
+  bool dirty{false};
+  std::uint64_t revision{0};
+  bool can_undo{false};
+  bool can_redo{false};
+
+  friend bool operator==(const ConsoleSessionState&,
+                         const ConsoleSessionState&) = default;
+};
+
+struct ConsoleResponse {
+  std::uint32_t schema_version{1};
+  std::string request_id;
+  bool ok{false};
+  std::uint64_t revision{0};
+  ConsoleResultKind kind{ConsoleResultKind::status};
+  std::optional<ConsoleSessionState> session_state;
+  std::optional<VariationGraphProjection> graph;
+  std::optional<ConsoleNodeDetails> node;
+  std::vector<format::ValidationIssue> validation_issues;
+  std::optional<CommandResult> command_result;
+  std::optional<std::string> message;
+  std::optional<ConsoleError> console_error;
+  std::optional<EditorError> editor_error;
+
+  friend bool operator==(const ConsoleResponse&, const ConsoleResponse&) = default;
+};
+
+class DebugConsole {
+ public:
+  explicit DebugConsole(EditorSession& session,
+                        ConsoleLimits limits = {}) noexcept;
+
+  [[nodiscard]] ConsoleResponse execute(
+      std::string_view line, std::string request_id = {});
+  [[nodiscard]] ConsoleResponse dispatch(
+      ConsoleRequest request, std::string request_id = {});
+
+ private:
+  EditorSession& session_;
+  ConsoleLimits limits_;
+};
+
+enum class ConsoleRenderFormat {
+  text,
+  json,
+};
+
+[[nodiscard]] std::string render_console_response(
+    const ConsoleResponse& response, ConsoleRenderFormat format);
 
 }  // namespace oxq::editor

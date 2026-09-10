@@ -19,6 +19,10 @@ input line
 
 Tokenizer、parser、renderer 可在 native 单元测试中独立运行，不依赖 DOM 或 WASM。
 
+当前 native 实现公开 `tokenize_console`、`parse_console`、`DebugConsole` 和
+`render_console_response`。`DebugConsole` 只持有宿主提供的 `EditorSession&`，不拥有
+文档，也不提供文件系统或网络能力；修改、导航和历史请求分别转发到会话现有 API。
+
 ## 语法约定
 
 - UTF-8 输入，一行一个请求；
@@ -98,6 +102,11 @@ redo
 
 JSON 中所有可能超过 53 位精度的整数均编码为十进制字符串。`message` 面向人，程序只依赖 `code` 和结构化字段。
 
+`ConsoleResponse` 保留结构化的 session state、树投影、节点/局面/注释、校验问题或
+`CommandResult`，渲染器只负责 text/JSON 表达。JSON 的 revision 和全部 NodeId 均为
+字符串；棋盘格同时输出 `index` 和 `coord`。console/editor 错误分别使用
+`console.*`、`editor.*` 稳定 code，解析错误附字节 span。
+
 ## 安全与资源限制
 
 - 单行默认最多 64 KiB、token 最多 256 个、嵌套 JSON 值不在首版语法中；
@@ -105,6 +114,7 @@ JSON 中所有可能超过 53 位精度的整数均编码为十进制字符串�
 - 控制台无文件系统和网络命令；文件打开/保存由宿主应用提供；
 - 日志对棋谱注释和元数据按隐私数据处理，生产构建默认不记录原文；
 - parser 错误必须带字节 span，且不能改变 session。
+- fuzz preset 包含 `editor.console-parser-fuzz-smoke`，在 ASan/UBSan 下持续覆盖任意字节输入。
 
 ## 测试与完成定义
 

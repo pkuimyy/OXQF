@@ -78,6 +78,11 @@ target_link_libraries(oxq_editor_console_parser_test PRIVATE OXQF::editor)
 oxqf_set_project_warnings(oxq_editor_console_parser_test)
 oxqf_enable_sanitizers(oxq_editor_console_parser_test)
 add_test(NAME editor.console-parser COMMAND oxq_editor_console_parser_test)
+add_executable(oxq_editor_console_runtime_test editor/console_runtime_test.cpp)
+target_link_libraries(oxq_editor_console_runtime_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_console_runtime_test)
+oxqf_enable_sanitizers(oxq_editor_console_runtime_test)
+add_test(NAME editor.console-runtime COMMAND oxq_editor_console_runtime_test)
 set_tests_properties(
   editor.session
   editor.command
@@ -91,6 +96,7 @@ set_tests_properties(
   editor.position-cache
   editor.variation-graph
   editor.console-parser
+  editor.console-runtime
   PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
 )
 
@@ -301,6 +307,19 @@ if(OXQF_BUILD_FUZZERS)
     PROPERTIES
       ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
       TIMEOUT 15
+  )
+  add_executable(oxq_editor_console_parser_fuzz fuzz/console_parser_fuzz.cpp)
+  target_link_libraries(oxq_editor_console_parser_fuzz PRIVATE OXQF::editor)
+  target_compile_options(oxq_editor_console_parser_fuzz PRIVATE -fsanitize=fuzzer)
+  target_link_options(oxq_editor_console_parser_fuzz PRIVATE -fsanitize=fuzzer)
+  oxqf_set_project_warnings(oxq_editor_console_parser_fuzz)
+  add_test(
+    NAME editor.console-parser-fuzz-smoke
+    COMMAND oxq_editor_console_parser_fuzz -max_total_time=5 -timeout=2
+  )
+  set_tests_properties(
+    editor.console-parser-fuzz-smoke
+    PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
   )
 endif()
 

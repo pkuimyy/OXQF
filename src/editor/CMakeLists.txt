@@ -6,6 +6,7 @@ target_sources(
   PRIVATE
     src/editor_session.cpp
     src/console_parser.cpp
+    src/console_runtime.cpp
     src/product.cpp
     src/variation_graph.cpp
   PUBLIC
