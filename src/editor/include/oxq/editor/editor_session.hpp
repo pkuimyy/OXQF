@@ -75,6 +75,7 @@ class EditorSession {
     insert,
     delete_subtree,
     replace_move,
+    reorder_variation,
   };
 
   struct HistoryEntry {
@@ -89,6 +90,7 @@ class EditorSession {
     std::uint64_t after_token{0};
     std::optional<format::Move> before_move;
     std::optional<format::Move> after_move;
+    std::optional<std::size_t> reordered_index;
   };
 
   format::GameDocument document_;

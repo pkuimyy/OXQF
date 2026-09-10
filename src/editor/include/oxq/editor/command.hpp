@@ -31,8 +31,16 @@ struct ReplaceMoveCommand {
   friend bool operator==(const ReplaceMoveCommand&, const ReplaceMoveCommand&) = default;
 };
 
-using Command =
-    std::variant<InsertMoveCommand, DeleteSubtreeCommand, ReplaceMoveCommand>;
+struct ReorderVariationCommand {
+  format::NodeId node{0};
+  std::size_t target_index{0};
+
+  friend bool operator==(const ReorderVariationCommand&,
+                         const ReorderVariationCommand&) = default;
+};
+
+using Command = std::variant<InsertMoveCommand, DeleteSubtreeCommand,
+                             ReplaceMoveCommand, ReorderVariationCommand>;
 
 struct ChangeSet {
   std::uint64_t before_revision{0};

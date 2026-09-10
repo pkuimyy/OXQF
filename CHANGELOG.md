@@ -18,6 +18,8 @@
   restoration of NodeIds, annotations, sibling order, and storage order.
 - Add atomic move replacement with sibling-duplicate checks, descendant state
   validation, no-op detection, and Undo/Redo.
+- Add variation reordering and main-line promotion with final-index semantics,
+  no-op detection, stable selection, and Undo/Redo.
 
 ## 1.0.0 — 2026-09-04
 

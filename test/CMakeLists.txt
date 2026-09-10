@@ -33,11 +33,21 @@ target_link_libraries(oxq_editor_replace_move_test PRIVATE OXQF::editor)
 oxqf_set_project_warnings(oxq_editor_replace_move_test)
 oxqf_enable_sanitizers(oxq_editor_replace_move_test)
 add_test(NAME editor.replace-move COMMAND oxq_editor_replace_move_test)
+
+add_executable(
+  oxq_editor_reorder_variation_test
+  editor/reorder_variation_test.cpp
+)
+target_link_libraries(oxq_editor_reorder_variation_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_reorder_variation_test)
+oxqf_enable_sanitizers(oxq_editor_reorder_variation_test)
+add_test(NAME editor.reorder-variation COMMAND oxq_editor_reorder_variation_test)
 set_tests_properties(
   editor.session
   editor.command
   editor.delete-subtree
   editor.replace-move
+  editor.reorder-variation
   PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
 )
 

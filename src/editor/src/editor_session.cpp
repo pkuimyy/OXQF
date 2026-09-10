@@ -58,6 +58,25 @@ namespace {
              : format::validate_state(document);
 }
 
+[[nodiscard]] bool reorder_child(format::GameDocument& document,
+                                 format::NodeId parent_id,
+                                 format::NodeId node_id,
+                                 std::size_t target_index) {
+  auto* parent = document.move_tree.findNode(parent_id);
+  if (parent == nullptr || target_index >= parent->children.size()) {
+    return false;
+  }
+  const auto current = std::ranges::find(parent->children, node_id);
+  if (current == parent->children.end()) {
+    return false;
+  }
+  const auto node = *current;
+  parent->children.erase(current);
+  parent->children.insert(
+      parent->children.begin() + static_cast<std::ptrdiff_t>(target_index), node);
+  return document.move_tree.validateInvariants();
+}
+
 [[nodiscard]] std::variant<format::Position, EditorError> position_at(
     const format::GameDocument& document, format::NodeId target) {
   std::unordered_map<format::NodeId, const format::MoveNode*> nodes;
@@ -188,6 +207,93 @@ CommandOutcome EditorSession::execute(
                           "session revision does not match the expected revision");
   }
 
+  if (std::holds_alternative<ReorderVariationCommand>(command)) {
+    const auto& reorder = std::get<ReorderVariationCommand>(command);
+    if (reorder.node == 0) {
+      EditorError error;
+      error.code = EditorErrorCode::invalid_argument;
+      error.message = "the root node has no sibling position";
+      error.node_id = reorder.node;
+      return error;
+    }
+    const auto* target = document_.move_tree.findNode(reorder.node);
+    if (target == nullptr) {
+      return node_error(reorder.node);
+    }
+    const auto parent_id = *target->parent;
+    const auto* parent = document_.move_tree.findNode(parent_id);
+    if (parent == nullptr) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "reordered variation has no valid parent";
+      error.node_id = reorder.node;
+      return error;
+    }
+    if (reorder.target_index >= parent->children.size()) {
+      EditorError error;
+      error.code = EditorErrorCode::invalid_argument;
+      error.message = "target index is outside the parent's child range";
+      error.node_id = reorder.node;
+      return error;
+    }
+    const auto current = std::ranges::find(parent->children, reorder.node);
+    if (current == parent->children.end()) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "reordered variation is absent from its parent's children";
+      error.node_id = reorder.node;
+      return error;
+    }
+    const auto current_index =
+        static_cast<std::size_t>(std::distance(parent->children.begin(), current));
+    if (current_index == reorder.target_index) {
+      ChangeSet changes;
+      changes.before_revision = state_.revision;
+      changes.after_revision = state_.revision;
+      return CommandResult{state_.revision, std::move(changes), std::nullopt};
+    }
+
+    const auto storage_index = *document_.move_tree.storageIndex(reorder.node);
+    const auto original_node = *target;
+    format::GameDocument working = document_;
+    if (!reorder_child(working, parent_id, reorder.node, reorder.target_index)) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "could not reorder the requested variation";
+      error.node_id = reorder.node;
+      return error;
+    }
+
+    const auto before_revision = state_.revision;
+    const auto before_token = current_document_token_;
+    const auto after_token = next_document_token_++;
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    state_.dirty = current_document_token_ != saved_document_token_;
+    undo_history_.push_back({HistoryKind::reorder_variation,
+                             {{storage_index, original_node}},
+                             reorder.node,
+                             parent_id,
+                             current_index,
+                             state_.current_node,
+                             state_.current_node,
+                             before_token,
+                             after_token,
+                             std::nullopt,
+                             std::nullopt,
+                             reorder.target_index});
+    redo_history_.clear();
+    state_.can_undo = true;
+    state_.can_redo = false;
+
+    ChangeSet changes;
+    changes.before_revision = before_revision;
+    changes.after_revision = state_.revision;
+    changes.reordered_parents = {parent_id};
+    return CommandResult{state_.revision, std::move(changes), std::nullopt};
+  }
+
   if (std::holds_alternative<ReplaceMoveCommand>(command)) {
     const auto& replacement = std::get<ReplaceMoveCommand>(command);
     if (replacement.node == 0) {
@@ -290,7 +396,8 @@ CommandOutcome EditorSession::execute(
                              before_token,
                              after_token,
                              original_move,
-                             replacement.move});
+                             replacement.move,
+                             std::nullopt});
     redo_history_.clear();
     state_.can_undo = true;
     state_.can_redo = false;
@@ -393,7 +500,7 @@ CommandOutcome EditorSession::execute(
     undo_history_.push_back({HistoryKind::delete_subtree, std::move(stored_nodes),
                              deletion.node, parent_id, sibling_index, before_current,
                              after_current, before_token, after_token, std::nullopt,
-                             std::nullopt});
+                             std::nullopt, std::nullopt});
     redo_history_.clear();
     state_.can_undo = true;
     state_.can_redo = false;
@@ -498,6 +605,7 @@ CommandOutcome EditorSession::execute(
                            before_token,
                            after_token,
                            std::nullopt,
+                           std::nullopt,
                            std::nullopt});
   redo_history_.clear();
   state_.can_undo = true;
@@ -532,12 +640,15 @@ CommandOutcome EditorSession::undo(
     mutation_succeeded = working.move_tree.removeNode(entry.root);
   } else if (entry.kind == HistoryKind::delete_subtree) {
     mutation_succeeded = restore_subtree(working, entry);
-  } else {
+  } else if (entry.kind == HistoryKind::replace_move) {
     auto* target = working.move_tree.findNode(entry.root);
     mutation_succeeded = target != nullptr && entry.before_move.has_value();
     if (mutation_succeeded) {
       target->move = entry.before_move;
     }
+  } else {
+    mutation_succeeded = reorder_child(working, entry.parent, entry.root,
+                                       entry.sibling_index);
   }
   if (!mutation_succeeded ||
       format::has_errors(validate_document(working, options_))) {
@@ -564,6 +675,8 @@ CommandOutcome EditorSession::undo(
   changes.after_revision = state_.revision;
   if (entry.kind == HistoryKind::replace_move) {
     changes.updated = {entry.root};
+  } else if (entry.kind == HistoryKind::reorder_variation) {
+    changes.reordered_parents = {entry.parent};
   } else {
     for (const auto& stored : entry.nodes) {
       (entry.kind == HistoryKind::insert ? changes.removed : changes.inserted)
@@ -595,12 +708,16 @@ CommandOutcome EditorSession::redo(
     mutation_succeeded = restore_subtree(working, entry);
   } else if (entry.kind == HistoryKind::delete_subtree) {
     mutation_succeeded = working.move_tree.removeNode(entry.root);
-  } else {
+  } else if (entry.kind == HistoryKind::replace_move) {
     auto* target = working.move_tree.findNode(entry.root);
     mutation_succeeded = target != nullptr && entry.after_move.has_value();
     if (mutation_succeeded) {
       target->move = entry.after_move;
     }
+  } else {
+    mutation_succeeded = entry.reordered_index.has_value() &&
+                         reorder_child(working, entry.parent, entry.root,
+                                       *entry.reordered_index);
   }
   if (!mutation_succeeded ||
       format::has_errors(validate_document(working, options_))) {
@@ -627,6 +744,8 @@ CommandOutcome EditorSession::redo(
   changes.after_revision = state_.revision;
   if (entry.kind == HistoryKind::replace_move) {
     changes.updated = {entry.root};
+  } else if (entry.kind == HistoryKind::reorder_variation) {
+    changes.reordered_parents = {entry.parent};
   } else {
     for (const auto& stored : entry.nodes) {
       (entry.kind == HistoryKind::insert ? changes.inserted : changes.removed)
