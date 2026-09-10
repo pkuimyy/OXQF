@@ -20,6 +20,7 @@ enum class ValidationPolicy {
 
 struct SessionOptions {
   ValidationPolicy validation_policy{ValidationPolicy::state_consistent};
+  std::size_t max_document_nodes{1000000};
   std::size_t max_compound_commands{1024};
   std::size_t max_history_entries{1024};
   std::size_t max_history_bytes{64U * 1024U * 1024U};
@@ -55,6 +56,14 @@ struct PositionCacheStats {
                          const PositionCacheStats&) = default;
 };
 
+struct HistoryStats {
+  std::size_t undo_entries{0};
+  std::size_t redo_entries{0};
+  std::size_t estimated_bytes{0};
+
+  friend bool operator==(const HistoryStats&, const HistoryStats&) = default;
+};
+
 class EditorSession {
  public:
   EditorSession(const EditorSession&) = delete;
@@ -70,6 +79,7 @@ class EditorSession {
   [[nodiscard]] std::variant<format::Position, EditorError> position_at(
       format::NodeId node) const;
   [[nodiscard]] PositionCacheStats position_cache_stats() const noexcept;
+  [[nodiscard]] HistoryStats history_stats() const noexcept;
   [[nodiscard]] NodeSummaryOutcome node_summary(format::NodeId node) const;
   [[nodiscard]] NodePathOutcome path_to(format::NodeId node) const;
   [[nodiscard]] VariationGraphOutcome variation_graph(
@@ -87,6 +97,7 @@ class EditorSession {
       format::NodeId node,
       std::optional<std::uint64_t> expected_revision = std::nullopt);
   [[nodiscard]] Status mark_saved(std::uint64_t revision);
+  void clear_history() noexcept;
 
  private:
   explicit EditorSession(format::GameDocument document);

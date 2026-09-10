@@ -346,6 +346,19 @@ PositionCacheStats EditorSession::position_cache_stats() const noexcept {
                             position_cache_misses_};
 }
 
+HistoryStats EditorSession::history_stats() const noexcept {
+  HistoryStats stats;
+  stats.undo_entries = undo_history_.size();
+  stats.redo_entries = redo_history_.size();
+  for (const auto& entry : undo_history_) {
+    stats.estimated_bytes += estimate_history_bytes(entry);
+  }
+  for (const auto& entry : redo_history_) {
+    stats.estimated_bytes += estimate_history_bytes(entry);
+  }
+  return stats;
+}
+
 void EditorSession::invalidate_position_cache(
     const std::vector<format::NodeId>& nodes) {
   for (const auto node : nodes) {
@@ -999,6 +1012,12 @@ CommandOutcome EditorSession::execute(
   }
 
   const auto& insert = std::get<InsertMoveCommand>(command);
+  if (document_.move_tree.nodes.size() >= options_.max_document_nodes) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "document has reached the configured node limit";
+    return error;
+  }
   const auto* parent = document_.move_tree.findNode(insert.parent);
   if (parent == nullptr) {
     return node_error(insert.parent);
@@ -1384,7 +1403,20 @@ Status EditorSession::mark_saved(std::uint64_t revision) {
   return std::nullopt;
 }
 
+void EditorSession::clear_history() noexcept {
+  undo_history_.clear();
+  redo_history_.clear();
+  state_.can_undo = false;
+  state_.can_redo = false;
+}
+
 OpenOutcome open_document(format::GameDocument document, SessionOptions options) {
+  if (document.move_tree.nodes.size() > options.max_document_nodes) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "document exceeds the configured node limit";
+    return error;
+  }
   auto issues = validate_document(document, options);
   if (format::has_errors(issues)) {
     EditorError error;

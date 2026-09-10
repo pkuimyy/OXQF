@@ -73,6 +73,21 @@ int main() {
       !is_error(session.undo(5), EditorErrorCode::history_empty)) {
     return 3;
   }
+  const auto before_clear = session.export_document();
+  const auto before_clear_state = session.state();
+  if (session.history_stats().undo_entries != 0 ||
+      session.history_stats().redo_entries != 2 ||
+      session.history_stats().estimated_bytes == 0) {
+    return 9;
+  }
+  session.clear_history();
+  if (session.history_stats() != oxq::editor::HistoryStats{} ||
+      session.state().revision != before_clear_state.revision ||
+      session.state().dirty != before_clear_state.dirty ||
+      session.state().can_undo || session.state().can_redo ||
+      !(session.export_document() == before_clear)) {
+    return 10;
+  }
 
   SessionOptions no_history_options;
   no_history_options.max_history_entries = 0;
@@ -95,6 +110,29 @@ int main() {
       tiny.state().revision != 0 || tiny.state().can_undo ||
       !(tiny.export_document() == original)) {
     return 5;
+  }
+
+  SessionOptions node_limit_options;
+  node_limit_options.max_document_nodes = 1;
+  auto node_limited_opened =
+      oxq::editor::open_document(original, node_limit_options);
+  auto node_limited =
+      std::get<EditorSession>(std::move(node_limited_opened));
+  if (!is_error(node_limited.execute(
+                    InsertMoveCommand{0, Move{0, 9}, {}}, 0),
+                EditorErrorCode::resource_limit) ||
+      node_limited.state().revision != 0 ||
+      !(node_limited.export_document() == original)) {
+    return 11;
+  }
+  auto oversized = original;
+  static_cast<void>(oversized.move_tree.addNode(0, Move{0, 9}));
+  const auto rejected_open =
+      oxq::editor::open_document(std::move(oversized), node_limit_options);
+  if (!std::holds_alternative<EditorError>(rejected_open) ||
+      std::get<EditorError>(rejected_open).code !=
+          EditorErrorCode::resource_limit) {
+    return 12;
   }
 
   SessionOptions one_entry_options;

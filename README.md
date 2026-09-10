@@ -14,6 +14,24 @@ The staged implementation plan for evolving the workspace toward `oxq-format`,
 `oxq-editor`, WASM bindings, and the Web editor starts at
 [doc/implementation/README.md](doc/implementation/README.md).
 
+The native `oxq-editor` alpha is available through `OXQF::editor`. It provides
+validated sessions, atomic typed commands, bounded Undo/Redo, position queries,
+ordered variation-tree projections, and a sandboxed Debug Console adapter. A
+minimal session can be opened and queried as follows:
+
+```cpp
+#include <oxq/editor/console.hpp>
+#include <oxq/editor/editor_session.hpp>
+
+auto opened = oxq::editor::open_document(document);
+auto session = std::get<oxq::editor::EditorSession>(std::move(opened));
+oxq::editor::DebugConsole console{session};
+auto response = console.execute("status", "request-1");
+```
+
+The editor does not implement full Xiangqi move legality; its default
+`state_consistent` policy validates replay state, ownership, and occupancy.
+
 ## Development prerequisites
 
 - CMake 3.23 or newer;

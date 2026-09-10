@@ -538,6 +538,7 @@ add_test(NAME cli.contract-and-e2e COMMAND oxq_cli_test)
 if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
   set_tests_properties(
     core.header-smoke
+    format.header-smoke
     core.game-model
     core.state-validation
     core.unicode-nfc
@@ -602,3 +603,9 @@ add_test(
     "-DOXQF_INSTALL_DATADIR=${CMAKE_INSTALL_DATADIR}"
     -P "${PROJECT_SOURCE_DIR}/test/consumer/run.cmake"
 )
+if(OXQF_ENABLE_SANITIZERS AND NOT MSVC)
+  set_tests_properties(
+    package.consumer-smoke
+    PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
+  )
+endif()

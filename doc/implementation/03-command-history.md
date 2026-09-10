@@ -90,6 +90,9 @@ allocator bookkeeping。`max_history_entries == 0` 或无法容纳单个历史�
 4. 清空历史不改变文档和 dirty；
 5. 历史默认只在内存中存在，不保存到 OXQ v1。
 
+宿主可通过 `history_stats()` 读取 Undo/Redo 项数和同一估算口径的总字节数，并通过
+`clear_history()` 立即释放两栈。清空操作不改变文档、revision、dirty、选择或局面缓存。
+
 ## 复合命令
 
 复合命令用于粘贴一段变化、批量注释、复制分支等用户级动作：

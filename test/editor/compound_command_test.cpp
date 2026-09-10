@@ -131,8 +131,11 @@ int main() {
     return 9;
   }
 
-  auto limited_opened = oxq::editor::open_document(
-      original, SessionOptions{ValidationPolicy::state_consistent, 1});
+  SessionOptions compound_limit;
+  compound_limit.validation_policy = ValidationPolicy::state_consistent;
+  compound_limit.max_compound_commands = 1;
+  auto limited_opened =
+      oxq::editor::open_document(original, compound_limit);
   auto limited_session = std::get<EditorSession>(std::move(limited_opened));
   CompoundCommand too_large{{
       AtomicCommand{SetMetadataCommand{metadata}},

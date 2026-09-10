@@ -22,6 +22,17 @@
   no-op detection, stable selection, and Undo/Redo.
 - Add validated annotation and full-metadata replacement commands with no-op
   detection, structured change sets, and Undo/Redo.
+- Complete the native `oxq-editor` alpha with atomic compound commands,
+  bounded/history-aware Undo and Redo, document node limits, deterministic
+  random-sequence verification, and observable history usage.
+- Add arbitrary-node position queries with a bounded invalidation-aware cache,
+  ordered VariationGraph tree projections, path/node summaries, and bounded
+  session snapshots.
+- Add the safe Debug Console tokenizer, typed parser, command registry,
+  EditorSession dispatcher, structured text/JSON rendering, and parser fuzz
+  coverage.
+- Verify real OXQ Reader → Editor → Writer round trips and installed-package
+  consumption of the Editor, Console, and VariationGraph APIs.
 
 ## 1.0.0 — 2026-09-04
 

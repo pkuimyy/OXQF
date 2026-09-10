@@ -55,6 +55,8 @@ class EditorSession {
 - `snapshot()` 是 UI 读取模型，不能反向转换为可变 C++ 引用；
 - `export_document()` 不清除 dirty；只有宿主确认保存成功后调用 `mark_saved(revision)`；
 - `mark_saved` 只在 revision 仍匹配时清除 dirty，防止异步保存覆盖后续编辑。
+- `SessionOptions::max_document_nodes` 默认 1,000,000；打开超限文档或在上限处插入
+  节点均在修改前返回 `resource_limit`。
 
 ## 节点与变化语义
 

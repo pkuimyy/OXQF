@@ -54,6 +54,11 @@ M1 出口：新 consumer 只见 `format`，旧 consumer 仍通过，Writer 指�
 
 ## M2：editor alpha
 
+状态：native `oxq-editor` 工作包 WP-201 至 WP-206 已于 2026-09-10 完成实现；
+真实 OXQ 的 Reader → Editor → Undo/Redo → Writer → Reader 路径、安装后 consumer、
+GCC Debug/Release、Clang ASan/UBSan 与 Console parser fuzz 均已有自动化门禁。
+Windows MSVC 由现有 CI matrix 持续验证。
+
 ### WP-201 库骨架与错误模型
 
 - 新建 `oxq-editor` target、public headers、版本接口；
