@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -157,11 +158,138 @@ SnapshotOutcome EditorSession::snapshot() const {
   return SessionSnapshot{state_, std::get<format::Position>(std::move(position))};
 }
 
+bool EditorSession::restore_subtree(format::GameDocument& document,
+                                    const HistoryEntry& entry) const {
+  auto& storage = document.move_tree.nodes;
+  for (const auto& stored : entry.nodes) {
+    if (stored.storage_index > storage.size()) {
+      return false;
+    }
+    storage.insert(storage.begin() + static_cast<std::ptrdiff_t>(stored.storage_index),
+                   stored.node);
+  }
+  if (!document.move_tree.rebuildIndex()) {
+    return false;
+  }
+  auto* parent = document.move_tree.findNode(entry.parent);
+  if (parent == nullptr || entry.sibling_index > parent->children.size()) {
+    return false;
+  }
+  parent->children.insert(
+      parent->children.begin() + static_cast<std::ptrdiff_t>(entry.sibling_index),
+      entry.root);
+  return document.move_tree.validateInvariants();
+}
+
 CommandOutcome EditorSession::execute(
     Command command, std::optional<std::uint64_t> expected_revision) {
   if (expected_revision.has_value() && *expected_revision != state_.revision) {
     return revision_error(*expected_revision, state_.revision,
                           "session revision does not match the expected revision");
+  }
+
+  if (std::holds_alternative<DeleteSubtreeCommand>(command)) {
+    const auto& deletion = std::get<DeleteSubtreeCommand>(command);
+    if (deletion.node == 0) {
+      EditorError error;
+      error.code = EditorErrorCode::invalid_argument;
+      error.message = "the root node cannot be deleted";
+      error.node_id = deletion.node;
+      return error;
+    }
+    const auto* target = document_.move_tree.findNode(deletion.node);
+    if (target == nullptr) {
+      return node_error(deletion.node);
+    }
+    const auto parent_id = *target->parent;
+    const auto* parent = document_.move_tree.findNode(parent_id);
+    if (parent == nullptr) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "deleted subtree has no valid parent";
+      error.node_id = deletion.node;
+      return error;
+    }
+    const auto sibling = std::ranges::find(parent->children, deletion.node);
+    if (sibling == parent->children.end()) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "deleted subtree is absent from its parent's children";
+      error.node_id = deletion.node;
+      return error;
+    }
+    const auto sibling_index =
+        static_cast<std::size_t>(std::distance(parent->children.begin(), sibling));
+
+    std::unordered_set<format::NodeId> removed_ids;
+    std::vector<format::NodeId> pending{deletion.node};
+    while (!pending.empty()) {
+      const auto current = pending.back();
+      pending.pop_back();
+      if (!removed_ids.insert(current).second) {
+        continue;
+      }
+      const auto* removed = document_.move_tree.findNode(current);
+      if (removed == nullptr) {
+        return node_error(current);
+      }
+      pending.insert(pending.end(), removed->children.begin(), removed->children.end());
+    }
+
+    std::vector<StoredNode> stored_nodes;
+    std::vector<format::NodeId> removed_order;
+    stored_nodes.reserve(removed_ids.size());
+    removed_order.reserve(removed_ids.size());
+    for (std::size_t index = 0; index < document_.move_tree.nodes.size(); ++index) {
+      const auto& candidate = document_.move_tree.nodes[index];
+      if (removed_ids.contains(candidate.id)) {
+        stored_nodes.push_back({index, candidate});
+        removed_order.push_back(candidate.id);
+      }
+    }
+
+    format::GameDocument working = document_;
+    if (!working.move_tree.removeNode(deletion.node)) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "could not remove the requested subtree";
+      error.node_id = deletion.node;
+      return error;
+    }
+    auto issues = validate_document(working, options_);
+    if (format::has_errors(issues)) {
+      EditorError error;
+      error.code = EditorErrorCode::validation_failed;
+      error.message = "subtree deletion failed document validation";
+      error.validation_issues = std::move(issues);
+      error.node_id = deletion.node;
+      return error;
+    }
+
+    const auto before_revision = state_.revision;
+    const auto before_current = state_.current_node;
+    const auto after_current = removed_ids.contains(before_current) ? parent_id : before_current;
+    const auto before_token = current_document_token_;
+    const auto after_token = next_document_token_++;
+    document_ = std::move(working);
+    state_.current_node = after_current;
+    ++state_.revision;
+    current_document_token_ = after_token;
+    state_.dirty = current_document_token_ != saved_document_token_;
+    undo_history_.push_back({HistoryKind::delete_subtree, std::move(stored_nodes),
+                             deletion.node, parent_id, sibling_index, before_current,
+                             after_current, before_token, after_token});
+    redo_history_.clear();
+    state_.can_undo = true;
+    state_.can_redo = false;
+
+    ChangeSet changes;
+    changes.before_revision = before_revision;
+    changes.after_revision = state_.revision;
+    changes.removed = std::move(removed_order);
+    changes.reordered_parents = {parent_id};
+    changes.selection_changed = before_current != after_current;
+    return CommandResult{state_.revision, std::move(changes), std::nullopt};
   }
 
   const auto& insert = std::get<InsertMoveCommand>(command);
@@ -238,14 +366,22 @@ CommandOutcome EditorSession::execute(
   const auto before_current = state_.current_node;
   const auto before_token = current_document_token_;
   const auto after_token = next_document_token_++;
+  const auto inserted_index = *working.move_tree.storageIndex(created);
   const auto inserted_node = *working.move_tree.findNode(created);
   document_ = std::move(working);
   state_.current_node = created;
   ++state_.revision;
   current_document_token_ = after_token;
   state_.dirty = current_document_token_ != saved_document_token_;
-  undo_history_.push_back({inserted_node, insertion_index, before_current, created,
-                           before_token, after_token});
+  undo_history_.push_back({HistoryKind::insert,
+                           {{inserted_index, inserted_node}},
+                           created,
+                           insert.parent,
+                           insertion_index,
+                           before_current,
+                           created,
+                           before_token,
+                           after_token});
   redo_history_.clear();
   state_.can_undo = true;
   state_.can_redo = false;
@@ -274,12 +410,16 @@ CommandOutcome EditorSession::undo(
 
   const auto entry = undo_history_.back();
   format::GameDocument working = document_;
-  if (!working.move_tree.removeNode(entry.node.id) ||
+  const bool mutation_succeeded =
+      entry.kind == HistoryKind::insert
+          ? working.move_tree.removeNode(entry.root)
+          : restore_subtree(working, entry);
+  if (!mutation_succeeded ||
       format::has_errors(validate_document(working, options_))) {
     EditorError error;
     error.code = EditorErrorCode::internal_invariant;
-    error.message = "could not undo the inserted move";
-    error.node_id = entry.node.id;
+    error.message = "could not undo the editor command";
+    error.node_id = entry.root;
     return error;
   }
 
@@ -297,8 +437,11 @@ CommandOutcome EditorSession::undo(
   ChangeSet changes;
   changes.before_revision = before_revision;
   changes.after_revision = state_.revision;
-  changes.removed = {entry.node.id};
-  changes.reordered_parents = {*entry.node.parent};
+  for (const auto& stored : entry.nodes) {
+    (entry.kind == HistoryKind::insert ? changes.removed : changes.inserted)
+        .push_back(stored.node.id);
+  }
+  changes.reordered_parents = {entry.parent};
   changes.selection_changed = entry.before_current != entry.after_current;
   return CommandResult{state_.revision, std::move(changes), std::nullopt};
 }
@@ -318,31 +461,16 @@ CommandOutcome EditorSession::redo(
 
   const auto entry = redo_history_.back();
   format::GameDocument working = document_;
-  if (!working.move_tree.restoreNode(entry.node)) {
+  const bool mutation_succeeded =
+      entry.kind == HistoryKind::insert
+          ? restore_subtree(working, entry)
+          : working.move_tree.removeNode(entry.root);
+  if (!mutation_succeeded ||
+      format::has_errors(validate_document(working, options_))) {
     EditorError error;
     error.code = EditorErrorCode::internal_invariant;
-    error.message = "could not restore the inserted move";
-    error.node_id = entry.node.id;
-    return error;
-  }
-  auto* parent = working.move_tree.findNode(*entry.node.parent);
-  if (parent == nullptr || entry.sibling_index >= parent->children.size()) {
-    EditorError error;
-    error.code = EditorErrorCode::internal_invariant;
-    error.message = "could not restore the move's sibling position";
-    error.node_id = entry.node.id;
-    return error;
-  }
-  auto& children = parent->children;
-  const auto restored = children.back();
-  children.pop_back();
-  children.insert(children.begin() + static_cast<std::ptrdiff_t>(entry.sibling_index),
-                  restored);
-  if (format::has_errors(validate_document(working, options_))) {
-    EditorError error;
-    error.code = EditorErrorCode::internal_invariant;
-    error.message = "restored move failed document validation";
-    error.node_id = entry.node.id;
+    error.message = "could not redo the editor command";
+    error.node_id = entry.root;
     return error;
   }
 
@@ -360,10 +488,16 @@ CommandOutcome EditorSession::redo(
   ChangeSet changes;
   changes.before_revision = before_revision;
   changes.after_revision = state_.revision;
-  changes.inserted = {entry.node.id};
-  changes.reordered_parents = {*entry.node.parent};
+  for (const auto& stored : entry.nodes) {
+    (entry.kind == HistoryKind::insert ? changes.inserted : changes.removed)
+        .push_back(stored.node.id);
+  }
+  changes.reordered_parents = {entry.parent};
   changes.selection_changed = entry.before_current != entry.after_current;
-  return CommandResult{state_.revision, std::move(changes), entry.node.id};
+  const auto created = entry.kind == HistoryKind::insert
+                           ? std::optional<format::NodeId>{entry.root}
+                           : std::nullopt;
+  return CommandResult{state_.revision, std::move(changes), created};
 }
 
 Status EditorSession::checkout(format::NodeId node,

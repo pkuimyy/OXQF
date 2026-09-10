@@ -66,8 +66,21 @@ class EditorSession {
  private:
   explicit EditorSession(format::GameDocument document);
 
-  struct InsertHistoryEntry {
+  struct StoredNode {
+    std::size_t storage_index{0};
     format::MoveNode node;
+  };
+
+  enum class HistoryKind {
+    insert,
+    delete_subtree,
+  };
+
+  struct HistoryEntry {
+    HistoryKind kind{HistoryKind::insert};
+    std::vector<StoredNode> nodes;
+    format::NodeId root{0};
+    format::NodeId parent{0};
     std::size_t sibling_index{0};
     format::NodeId before_current{0};
     format::NodeId after_current{0};
@@ -78,11 +91,14 @@ class EditorSession {
   format::GameDocument document_;
   SessionState state_;
   SessionOptions options_;
-  std::vector<InsertHistoryEntry> undo_history_;
-  std::vector<InsertHistoryEntry> redo_history_;
+  std::vector<HistoryEntry> undo_history_;
+  std::vector<HistoryEntry> redo_history_;
   std::uint64_t current_document_token_{0};
   std::uint64_t saved_document_token_{0};
   std::uint64_t next_document_token_{1};
+
+  [[nodiscard]] bool restore_subtree(format::GameDocument& document,
+                                     const HistoryEntry& entry) const;
 
   friend std::variant<EditorSession, EditorError> open_document(
       format::GameDocument, SessionOptions);

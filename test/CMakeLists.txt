@@ -21,9 +21,16 @@ target_link_libraries(oxq_editor_command_test PRIVATE OXQF::editor)
 oxqf_set_project_warnings(oxq_editor_command_test)
 oxqf_enable_sanitizers(oxq_editor_command_test)
 add_test(NAME editor.command COMMAND oxq_editor_command_test)
+
+add_executable(oxq_editor_delete_subtree_test editor/delete_subtree_test.cpp)
+target_link_libraries(oxq_editor_delete_subtree_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_delete_subtree_test)
+oxqf_enable_sanitizers(oxq_editor_delete_subtree_test)
+add_test(NAME editor.delete-subtree COMMAND oxq_editor_delete_subtree_test)
 set_tests_properties(
   editor.session
   editor.command
+  editor.delete-subtree
   PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
 )
 

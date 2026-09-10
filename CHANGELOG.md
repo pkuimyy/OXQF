@@ -14,6 +14,8 @@
 - Add atomic move insertion with duplicate/revision validation, structured
   change sets, stable NodeId-preserving Undo/Redo, and checkpoint-aware dirty
   state.
+- Add atomic subtree deletion with current-selection fallback and exact Undo
+  restoration of NodeIds, annotations, sibling order, and storage order.
 
 ## 1.0.0 — 2026-09-04
 

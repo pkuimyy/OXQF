@@ -18,7 +18,13 @@ struct InsertMoveCommand {
   friend bool operator==(const InsertMoveCommand&, const InsertMoveCommand&) = default;
 };
 
-using Command = std::variant<InsertMoveCommand>;
+struct DeleteSubtreeCommand {
+  format::NodeId node{0};
+
+  friend bool operator==(const DeleteSubtreeCommand&, const DeleteSubtreeCommand&) = default;
+};
+
+using Command = std::variant<InsertMoveCommand, DeleteSubtreeCommand>;
 
 struct ChangeSet {
   std::uint64_t before_revision{0};
