@@ -19,6 +19,8 @@ enum class ValidationPolicy {
 struct SessionOptions {
   ValidationPolicy validation_policy{ValidationPolicy::state_consistent};
   std::size_t max_compound_commands{1024};
+  std::size_t max_history_entries{1024};
+  std::size_t max_history_bytes{64U * 1024U * 1024U};
 };
 
 struct SessionState {
@@ -115,6 +117,9 @@ class EditorSession {
 
   [[nodiscard]] bool restore_subtree(format::GameDocument& document,
                                      const HistoryEntry& entry) const;
+  [[nodiscard]] std::size_t estimate_history_bytes(
+      const HistoryEntry& entry) const noexcept;
+  [[nodiscard]] Status store_history(HistoryEntry entry);
 
   friend std::variant<EditorSession, EditorError> open_document(
       format::GameDocument, SessionOptions);

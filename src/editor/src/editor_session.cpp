@@ -11,6 +11,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -93,6 +94,114 @@ void merge_changes(ChangeSet& target, const ChangeSet& source) {
   append_unique(target.reordered_parents, source.reordered_parents);
   target.metadata_changed = target.metadata_changed || source.metadata_changed;
   target.selection_changed = target.selection_changed || source.selection_changed;
+}
+
+[[nodiscard]] std::size_t string_bytes(const std::string& value) noexcept {
+  return value.capacity();
+}
+
+[[nodiscard]] std::size_t optional_string_bytes(
+    const std::optional<std::string>& value) noexcept {
+  return value.has_value() ? string_bytes(*value) : 0;
+}
+
+[[nodiscard]] std::size_t annotation_bytes(
+    const format::Annotation& annotation) noexcept {
+  return sizeof(format::Annotation) + string_bytes(annotation.text) +
+         optional_string_bytes(annotation.author) +
+         optional_string_bytes(annotation.language);
+}
+
+[[nodiscard]] std::size_t metadata_bytes(
+    const format::GameMetadata& metadata) noexcept {
+  std::size_t bytes = sizeof(format::GameMetadata);
+  const auto add_player = [&](const format::PlayerMetadata& player) {
+    bytes += optional_string_bytes(player.name) + optional_string_bytes(player.id) +
+             optional_string_bytes(player.country) +
+             optional_string_bytes(player.title) + optional_string_bytes(player.team) +
+             optional_string_bytes(player.time_used);
+  };
+  add_player(metadata.red_player);
+  add_player(metadata.black_player);
+  bytes += optional_string_bytes(metadata.event.name) +
+           optional_string_bytes(metadata.event.id) +
+           optional_string_bytes(metadata.event.location) +
+           optional_string_bytes(metadata.event.organizer) +
+           optional_string_bytes(metadata.event.round) +
+           optional_string_bytes(metadata.event.type) +
+           optional_string_bytes(metadata.event.group) +
+           optional_string_bytes(metadata.event.board_number) +
+           optional_string_bytes(metadata.event.time_control) +
+           optional_string_bytes(metadata.event.start_time) +
+           optional_string_bytes(metadata.event.end_time) +
+           optional_string_bytes(metadata.result_text) +
+           optional_string_bytes(metadata.opening.name) +
+           optional_string_bytes(metadata.opening.code) +
+           optional_string_bytes(metadata.opening.id) +
+           optional_string_bytes(metadata.title) +
+           optional_string_bytes(metadata.game_type) +
+           optional_string_bytes(metadata.referee) +
+           optional_string_bytes(metadata.recorder) +
+           optional_string_bytes(metadata.commentator) +
+           optional_string_bytes(metadata.commentator_uri) +
+           optional_string_bytes(metadata.creator) +
+           optional_string_bytes(metadata.creator_uri) +
+           optional_string_bytes(metadata.record_created_at) +
+           optional_string_bytes(metadata.record_modified_at) +
+           optional_string_bytes(metadata.provenance.source_format) +
+           optional_string_bytes(metadata.provenance.source_record_id) +
+           optional_string_bytes(metadata.provenance.source_uri) +
+           optional_string_bytes(metadata.provenance.import_note) +
+           optional_string_bytes(metadata.provenance.source_format_version) +
+           optional_string_bytes(metadata.provenance.source_library_id) +
+           optional_string_bytes(metadata.provenance.source_library_name) +
+           optional_string_bytes(metadata.provenance.source_category);
+  bytes += metadata.tags.capacity() * sizeof(std::string);
+  for (const auto& tag : metadata.tags) {
+    bytes += string_bytes(tag);
+  }
+  for (const auto& [name, properties] : metadata.extensions) {
+    bytes += sizeof(name) + string_bytes(name) + sizeof(properties);
+    for (const auto& [key, value] : properties) {
+      bytes += sizeof(key) + string_bytes(key) + sizeof(value);
+      std::visit(
+          [&](const auto& stored) {
+            using Value = std::decay_t<decltype(stored)>;
+            if constexpr (std::is_same_v<Value, std::string>) {
+              bytes += string_bytes(stored);
+            } else {
+              bytes += stored.capacity() * sizeof(std::string);
+              for (const auto& item : stored) {
+                bytes += string_bytes(item);
+              }
+            }
+          },
+          value);
+    }
+  }
+  return bytes;
+}
+
+[[nodiscard]] std::size_t node_dynamic_bytes(
+    const format::MoveNode& node) noexcept {
+  std::size_t bytes = node.children.capacity() * sizeof(format::NodeId) +
+                      node.annotations.capacity() * sizeof(format::Annotation);
+  for (const auto& annotation : node.annotations) {
+    bytes += annotation_bytes(annotation) - sizeof(format::Annotation);
+  }
+  return bytes;
+}
+
+[[nodiscard]] std::size_t document_bytes(
+    const format::GameDocument& document) noexcept {
+  std::size_t bytes = sizeof(format::GameDocument) + metadata_bytes(document.metadata) +
+                      document.initial_position.pieces.capacity() *
+                          sizeof(format::Piece) +
+                      document.move_tree.nodes.capacity() * sizeof(format::MoveNode);
+  for (const auto& node : document.move_tree.nodes) {
+    bytes += node_dynamic_bytes(node);
+  }
+  return bytes;
 }
 
 [[nodiscard]] std::variant<format::Position, EditorError> position_at(
@@ -218,6 +327,81 @@ bool EditorSession::restore_subtree(format::GameDocument& document,
   return document.move_tree.validateInvariants();
 }
 
+std::size_t EditorSession::estimate_history_bytes(
+    const HistoryEntry& entry) const noexcept {
+  std::size_t bytes = sizeof(HistoryEntry) +
+                      entry.nodes.capacity() * sizeof(StoredNode);
+  for (const auto& stored : entry.nodes) {
+    bytes += node_dynamic_bytes(stored.node);
+  }
+  const auto add_annotations = [&](const auto& annotations) {
+    if (!annotations.has_value()) {
+      return;
+    }
+    bytes += annotations->capacity() * sizeof(format::Annotation);
+    for (const auto& annotation : *annotations) {
+      bytes += annotation_bytes(annotation) - sizeof(format::Annotation);
+    }
+  };
+  add_annotations(entry.before_annotations);
+  add_annotations(entry.after_annotations);
+  if (entry.before_metadata.has_value()) {
+    bytes += metadata_bytes(*entry.before_metadata);
+  }
+  if (entry.after_metadata.has_value()) {
+    bytes += metadata_bytes(*entry.after_metadata);
+  }
+  if (entry.before_document.has_value()) {
+    bytes += document_bytes(*entry.before_document);
+  }
+  if (entry.after_document.has_value()) {
+    bytes += document_bytes(*entry.after_document);
+  }
+  if (entry.forward_changes.has_value()) {
+    const auto& changes = *entry.forward_changes;
+    bytes += sizeof(ChangeSet) +
+             changes.inserted.capacity() * sizeof(format::NodeId) +
+             changes.removed.capacity() * sizeof(format::NodeId) +
+             changes.updated.capacity() * sizeof(format::NodeId) +
+             changes.reordered_parents.capacity() * sizeof(format::NodeId);
+  }
+  return bytes;
+}
+
+Status EditorSession::store_history(HistoryEntry entry) {
+  const auto entry_bytes = estimate_history_bytes(entry);
+  if (options_.max_history_entries == 0 ||
+      entry_bytes > options_.max_history_bytes) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "editor history entry exceeds the configured limits";
+    return error;
+  }
+
+  try {
+    auto next_history = undo_history_;
+    next_history.push_back(std::move(entry));
+    std::size_t total_bytes = 0;
+    for (const auto& stored : next_history) {
+      total_bytes += estimate_history_bytes(stored);
+    }
+    while (next_history.size() > 1 &&
+           (next_history.size() > options_.max_history_entries ||
+            total_bytes > options_.max_history_bytes)) {
+      total_bytes -= estimate_history_bytes(next_history.front());
+      next_history.erase(next_history.begin());
+    }
+    undo_history_.swap(next_history);
+    redo_history_.clear();
+  } catch (const std::bad_alloc&) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "not enough memory to store editor history";
+    return error;
+  }
+  return std::nullopt;
+}
+
 CommandOutcome EditorSession::execute(
     Command command, std::optional<std::uint64_t> expected_revision) {
   if (expected_revision.has_value() && *expected_revision != state_.revision) {
@@ -243,6 +427,10 @@ CommandOutcome EditorSession::execute(
     EditorSession temporary{document_};
     temporary.state_ = state_;
     temporary.options_ = options_;
+    temporary.options_.max_history_entries =
+        std::numeric_limits<std::size_t>::max();
+    temporary.options_.max_history_bytes =
+        std::numeric_limits<std::size_t>::max();
     temporary.current_document_token_ = current_document_token_;
     temporary.saved_document_token_ = saved_document_token_;
     temporary.next_document_token_ = next_document_token_;
@@ -269,7 +457,7 @@ CommandOutcome EditorSession::execute(
     const auto before_current = state_.current_node;
     const auto after_current = temporary.state_.current_node;
     const auto before_token = current_document_token_;
-    const auto after_token = next_document_token_++;
+    const auto after_token = next_document_token_;
 
     HistoryEntry history;
     history.kind = HistoryKind::compound;
@@ -280,14 +468,16 @@ CommandOutcome EditorSession::execute(
     history.before_document = document_;
     history.after_document = temporary.document_;
     history.forward_changes = merged;
+    if (auto error = store_history(std::move(history)); error.has_value()) {
+      return *std::move(error);
+    }
 
     document_ = std::move(temporary.document_);
     state_.current_node = after_current;
     state_.revision = before_revision + 1;
     current_document_token_ = after_token;
+    ++next_document_token_;
     state_.dirty = current_document_token_ != saved_document_token_;
-    undo_history_.push_back(std::move(history));
-    redo_history_.clear();
     state_.can_undo = true;
     state_.can_redo = false;
 
@@ -320,11 +510,7 @@ CommandOutcome EditorSession::execute(
 
     const auto before_revision = state_.revision;
     const auto before_token = current_document_token_;
-    const auto after_token = next_document_token_++;
-    document_ = std::move(working);
-    ++state_.revision;
-    current_document_token_ = after_token;
-    state_.dirty = current_document_token_ != saved_document_token_;
+    const auto after_token = next_document_token_;
     HistoryEntry history;
     history.kind = HistoryKind::set_metadata;
     history.before_current = state_.current_node;
@@ -333,8 +519,14 @@ CommandOutcome EditorSession::execute(
     history.after_token = after_token;
     history.before_metadata = previous;
     history.after_metadata = update.metadata;
-    undo_history_.push_back(std::move(history));
-    redo_history_.clear();
+    if (auto error = store_history(std::move(history)); error.has_value()) {
+      return *std::move(error);
+    }
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    ++next_document_token_;
+    state_.dirty = current_document_token_ != saved_document_token_;
     state_.can_undo = true;
     state_.can_redo = false;
 
@@ -381,11 +573,7 @@ CommandOutcome EditorSession::execute(
 
     const auto before_revision = state_.revision;
     const auto before_token = current_document_token_;
-    const auto after_token = next_document_token_++;
-    document_ = std::move(working);
-    ++state_.revision;
-    current_document_token_ = after_token;
-    state_.dirty = current_document_token_ != saved_document_token_;
+    const auto after_token = next_document_token_;
     HistoryEntry history;
     history.kind = HistoryKind::set_annotations;
     history.root = update.node;
@@ -395,8 +583,14 @@ CommandOutcome EditorSession::execute(
     history.after_token = after_token;
     history.before_annotations = previous;
     history.after_annotations = update.annotations;
-    undo_history_.push_back(std::move(history));
-    redo_history_.clear();
+    if (auto error = store_history(std::move(history)); error.has_value()) {
+      return *std::move(error);
+    }
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    ++next_document_token_;
+    state_.dirty = current_document_token_ != saved_document_token_;
     state_.can_undo = true;
     state_.can_redo = false;
 
@@ -466,11 +660,7 @@ CommandOutcome EditorSession::execute(
 
     const auto before_revision = state_.revision;
     const auto before_token = current_document_token_;
-    const auto after_token = next_document_token_++;
-    document_ = std::move(working);
-    ++state_.revision;
-    current_document_token_ = after_token;
-    state_.dirty = current_document_token_ != saved_document_token_;
+    const auto after_token = next_document_token_;
     HistoryEntry history;
     history.kind = HistoryKind::reorder_variation;
     history.nodes = {{storage_index, original_node}};
@@ -482,8 +672,14 @@ CommandOutcome EditorSession::execute(
     history.before_token = before_token;
     history.after_token = after_token;
     history.reordered_index = reorder.target_index;
-    undo_history_.push_back(std::move(history));
-    redo_history_.clear();
+    if (auto error = store_history(std::move(history)); error.has_value()) {
+      return *std::move(error);
+    }
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    ++next_document_token_;
+    state_.dirty = current_document_token_ != saved_document_token_;
     state_.can_undo = true;
     state_.can_redo = false;
 
@@ -580,12 +776,8 @@ CommandOutcome EditorSession::execute(
 
     const auto before_revision = state_.revision;
     const auto before_token = current_document_token_;
-    const auto after_token = next_document_token_++;
+    const auto after_token = next_document_token_;
     const auto original_node = *target;
-    document_ = std::move(working);
-    ++state_.revision;
-    current_document_token_ = after_token;
-    state_.dirty = current_document_token_ != saved_document_token_;
     HistoryEntry history;
     history.kind = HistoryKind::replace_move;
     history.nodes = {{storage_index, original_node}};
@@ -598,8 +790,14 @@ CommandOutcome EditorSession::execute(
     history.after_token = after_token;
     history.before_move = original_move;
     history.after_move = replacement.move;
-    undo_history_.push_back(std::move(history));
-    redo_history_.clear();
+    if (auto error = store_history(std::move(history)); error.has_value()) {
+      return *std::move(error);
+    }
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    ++next_document_token_;
+    state_.dirty = current_document_token_ != saved_document_token_;
     state_.can_undo = true;
     state_.can_redo = false;
 
@@ -692,12 +890,7 @@ CommandOutcome EditorSession::execute(
     const auto before_current = state_.current_node;
     const auto after_current = removed_ids.contains(before_current) ? parent_id : before_current;
     const auto before_token = current_document_token_;
-    const auto after_token = next_document_token_++;
-    document_ = std::move(working);
-    state_.current_node = after_current;
-    ++state_.revision;
-    current_document_token_ = after_token;
-    state_.dirty = current_document_token_ != saved_document_token_;
+    const auto after_token = next_document_token_;
     HistoryEntry history;
     history.kind = HistoryKind::delete_subtree;
     history.nodes = std::move(stored_nodes);
@@ -708,8 +901,15 @@ CommandOutcome EditorSession::execute(
     history.after_current = after_current;
     history.before_token = before_token;
     history.after_token = after_token;
-    undo_history_.push_back(std::move(history));
-    redo_history_.clear();
+    if (auto error = store_history(std::move(history)); error.has_value()) {
+      return *std::move(error);
+    }
+    document_ = std::move(working);
+    state_.current_node = after_current;
+    ++state_.revision;
+    current_document_token_ = after_token;
+    ++next_document_token_;
+    state_.dirty = current_document_token_ != saved_document_token_;
     state_.can_undo = true;
     state_.can_redo = false;
 
@@ -795,14 +995,9 @@ CommandOutcome EditorSession::execute(
   const auto before_revision = state_.revision;
   const auto before_current = state_.current_node;
   const auto before_token = current_document_token_;
-  const auto after_token = next_document_token_++;
+  const auto after_token = next_document_token_;
   const auto inserted_index = *working.move_tree.storageIndex(created);
   const auto inserted_node = *working.move_tree.findNode(created);
-  document_ = std::move(working);
-  state_.current_node = created;
-  ++state_.revision;
-  current_document_token_ = after_token;
-  state_.dirty = current_document_token_ != saved_document_token_;
   HistoryEntry history;
   history.kind = HistoryKind::insert;
   history.nodes = {{inserted_index, inserted_node}};
@@ -813,8 +1008,15 @@ CommandOutcome EditorSession::execute(
   history.after_current = created;
   history.before_token = before_token;
   history.after_token = after_token;
-  undo_history_.push_back(std::move(history));
-  redo_history_.clear();
+  if (auto error = store_history(std::move(history)); error.has_value()) {
+    return *std::move(error);
+  }
+  document_ = std::move(working);
+  state_.current_node = created;
+  ++state_.revision;
+  current_document_token_ = after_token;
+  ++next_document_token_;
+  state_.dirty = current_document_token_ != saved_document_token_;
   state_.can_undo = true;
   state_.can_redo = false;
 
@@ -840,8 +1042,17 @@ CommandOutcome EditorSession::undo(
     return error;
   }
 
-  const auto entry = undo_history_.back();
-  format::GameDocument working = document_;
+  HistoryEntry entry;
+  format::GameDocument working;
+  try {
+    entry = undo_history_.back();
+    working = document_;
+  } catch (const std::bad_alloc&) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "not enough memory to prepare undo";
+    return error;
+  }
   bool mutation_succeeded = false;
   if (entry.kind == HistoryKind::insert) {
     mutation_succeeded = working.move_tree.removeNode(entry.root);
@@ -882,14 +1093,28 @@ CommandOutcome EditorSession::undo(
     return error;
   }
 
+  std::vector<HistoryEntry> next_undo;
+  std::vector<HistoryEntry> next_redo;
+  try {
+    next_undo = undo_history_;
+    next_undo.pop_back();
+    next_redo = redo_history_;
+    next_redo.push_back(entry);
+  } catch (const std::bad_alloc&) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "not enough memory to update undo history";
+    return error;
+  }
+
   const auto before_revision = state_.revision;
   document_ = std::move(working);
   state_.current_node = entry.before_current;
   ++state_.revision;
   current_document_token_ = entry.before_token;
   state_.dirty = current_document_token_ != saved_document_token_;
-  undo_history_.pop_back();
-  redo_history_.push_back(entry);
+  undo_history_.swap(next_undo);
+  redo_history_.swap(next_redo);
   state_.can_undo = !undo_history_.empty();
   state_.can_redo = true;
 
@@ -933,8 +1158,17 @@ CommandOutcome EditorSession::redo(
     return error;
   }
 
-  const auto entry = redo_history_.back();
-  format::GameDocument working = document_;
+  HistoryEntry entry;
+  format::GameDocument working;
+  try {
+    entry = redo_history_.back();
+    working = document_;
+  } catch (const std::bad_alloc&) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "not enough memory to prepare redo";
+    return error;
+  }
   bool mutation_succeeded = false;
   if (entry.kind == HistoryKind::insert) {
     mutation_succeeded = restore_subtree(working, entry);
@@ -976,14 +1210,28 @@ CommandOutcome EditorSession::redo(
     return error;
   }
 
+  std::vector<HistoryEntry> next_undo;
+  std::vector<HistoryEntry> next_redo;
+  try {
+    next_undo = undo_history_;
+    next_undo.push_back(entry);
+    next_redo = redo_history_;
+    next_redo.pop_back();
+  } catch (const std::bad_alloc&) {
+    EditorError error;
+    error.code = EditorErrorCode::resource_limit;
+    error.message = "not enough memory to update redo history";
+    return error;
+  }
+
   const auto before_revision = state_.revision;
   document_ = std::move(working);
   state_.current_node = entry.after_current;
   ++state_.revision;
   current_document_token_ = entry.after_token;
   state_.dirty = current_document_token_ != saved_document_token_;
-  redo_history_.pop_back();
-  undo_history_.push_back(entry);
+  undo_history_.swap(next_undo);
+  redo_history_.swap(next_redo);
   state_.can_undo = true;
   state_.can_redo = !redo_history_.empty();
 

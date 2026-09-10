@@ -76,6 +76,12 @@ Envelope
 
 `HistoryOptions` 至少包含 `max_entries` 和 `max_bytes`。字节数按快照、字符串和容器容量的可解释估算统计，不要求精确到 allocator 元数据。
 
+当前 native API 将这些限制直接放在 `SessionOptions`：`max_history_entries`
+默认 1024，`max_history_bytes` 默认 64 MiB。估算包含历史值对象、容器 capacity、
+字符串 capacity、子树节点、元数据，以及复合命令保存的前后文档和 ChangeSet；不包含
+allocator bookkeeping。`max_history_entries == 0` 或无法容纳单个历史项时，持久化命令
+在修改文档前返回 `resource_limit`。
+
 裁剪规则：
 
 1. 新历史项大于单项上限时，命令在修改前返回 `resource_limit`；
