@@ -5,6 +5,7 @@ target_sources(
   oxq_editor
   PRIVATE
     src/editor_session.cpp
+    src/console_parser.cpp
     src/product.cpp
     src/variation_graph.cpp
   PUBLIC
@@ -12,6 +13,7 @@ target_sources(
     BASE_DIRS include
     FILES
       include/oxq/editor/command.hpp
+      include/oxq/editor/console.hpp
       include/oxq/editor/editor_session.hpp
       include/oxq/editor/error.hpp
       include/oxq/editor/product.hpp
