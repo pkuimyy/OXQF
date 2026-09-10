@@ -374,20 +374,41 @@ void append_change_set(std::string& output, const ChangeSet& changes) {
 
 [[nodiscard]] std::string help_text(const std::optional<std::string>& command) {
   if (!command.has_value()) {
-    return "status; tree; node show/delete; validate; move add/replace; "
-           "branch promote; checkout; annotation set; undo; redo; help";
+    std::string result;
+    for (const auto& info : console_commands()) {
+      if (!result.empty()) {
+        result += "; ";
+      }
+      result += info.name;
+    }
+    return result;
   }
-  if (*command == "move") {
-    return "move add --parent ID --from SQUARE --to SQUARE [--index N]; "
-           "move replace --node ID --from SQUARE --to SQUARE";
+  for (const auto& info : console_commands()) {
+    if (info.name == *command) {
+      return std::string{info.usage};
+    }
   }
-  if (*command == "tree") {
-    return "tree [--from ID] [--depth N] [--nodes N]";
-  }
-  return "use help for the complete command list";
+  return "unknown help topic; use help for the command list";
 }
 
 }  // namespace
+
+const std::vector<ConsoleCommandInfo>& console_commands() noexcept {
+  static const std::vector<ConsoleCommandInfo> commands{
+      {"status", "status", false},
+      {"tree", "tree [--from ID] [--depth N] [--nodes N]", false},
+      {"node", "node show --node ID; node delete --node ID", true},
+      {"validate", "validate [--state]", false},
+      {"move", "move add --parent ID --from SQUARE --to SQUARE [--index N]; move replace --node ID --from SQUARE --to SQUARE", true},
+      {"branch", "branch promote --node ID --index N", true},
+      {"checkout", "checkout --node ID", true},
+      {"annotation", "annotation set --node ID --kind KIND --text TEXT", true},
+      {"undo", "undo", true},
+      {"redo", "redo", true},
+      {"help", "help [command]", false},
+  };
+  return commands;
+}
 
 DebugConsole::DebugConsole(EditorSession& session, ConsoleLimits limits) noexcept
     : session_(session), limits_(limits) {}

@@ -9,6 +9,8 @@ set(required_files
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/format/document.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/format/writer.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/editor/editor_session.hpp"
+  "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/editor/console.hpp"
+  "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/editor/variation_graph.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_reader.hpp"
   "${stage_dir}/${OXQF_INSTALL_INCLUDEDIR}/oxq/convert/cbl_writer.hpp"
   "${stage_dir}/${OXQF_INSTALL_LIBDIR}/cmake/OXQF/OXQFConfig.cmake"

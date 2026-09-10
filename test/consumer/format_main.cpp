@@ -1,6 +1,8 @@
 #include <oxq/convert/product.hpp>
+#include <oxq/editor/console.hpp>
 #include <oxq/editor/editor_session.hpp>
 #include <oxq/editor/product.hpp>
+#include <oxq/editor/variation_graph.hpp>
 #include <oxq/format/document.hpp>
 #include <oxq/format/product.hpp>
 #include <oxq/format/reader.hpp>
@@ -27,6 +29,12 @@ int main() {
     editor_command_works =
         std::holds_alternative<oxq::editor::CommandResult>(result) &&
         std::holds_alternative<oxq::editor::CommandResult>(editor.undo());
+    oxq::editor::DebugConsole console{editor};
+    editor_command_works = editor_command_works &&
+                           console.execute("status", "consumer").ok &&
+                           std::holds_alternative<
+                               oxq::editor::VariationGraphProjection>(
+                               editor.variation_graph());
   }
 
   return std::holds_alternative<oxq::format::ReaderDiagnostics>(validator) &&

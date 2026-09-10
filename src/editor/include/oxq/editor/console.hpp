@@ -50,6 +50,15 @@ struct ConsoleLimits {
   std::size_t max_tokens{256};
 };
 
+struct ConsoleCommandInfo {
+  std::string_view name;
+  std::string_view usage;
+  bool mutates_session{false};
+
+  friend bool operator==(const ConsoleCommandInfo&,
+                         const ConsoleCommandInfo&) = default;
+};
+
 struct ConsoleToken {
   std::string value;
   ConsoleSpan span;
@@ -128,6 +137,7 @@ using ConsoleParseOutcome = std::variant<ConsoleRequest, ConsoleError>;
     const std::vector<ConsoleToken>& tokens);
 [[nodiscard]] ConsoleParseOutcome parse_console(
     std::string_view line, ConsoleLimits limits = {});
+[[nodiscard]] const std::vector<ConsoleCommandInfo>& console_commands() noexcept;
 
 enum class ConsoleResultKind {
   status,

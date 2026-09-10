@@ -83,6 +83,21 @@ target_link_libraries(oxq_editor_console_runtime_test PRIVATE OXQF::editor)
 oxqf_set_project_warnings(oxq_editor_console_runtime_test)
 oxqf_enable_sanitizers(oxq_editor_console_runtime_test)
 add_test(NAME editor.console-runtime COMMAND oxq_editor_console_runtime_test)
+add_executable(
+  oxq_editor_integration_roundtrip_test
+  editor/integration_roundtrip_test.cpp
+)
+target_link_libraries(oxq_editor_integration_roundtrip_test PRIVATE OXQF::editor)
+target_compile_definitions(
+  oxq_editor_integration_roundtrip_test
+  PRIVATE OXQF_VECTOR_DIRECTORY="${PROJECT_SOURCE_DIR}/test/vectors/oxq-v1"
+)
+oxqf_set_project_warnings(oxq_editor_integration_roundtrip_test)
+oxqf_enable_sanitizers(oxq_editor_integration_roundtrip_test)
+add_test(
+  NAME editor.integration-roundtrip
+  COMMAND oxq_editor_integration_roundtrip_test
+)
 set_tests_properties(
   editor.session
   editor.command
@@ -97,6 +112,7 @@ set_tests_properties(
   editor.variation-graph
   editor.console-parser
   editor.console-runtime
+  editor.integration-roundtrip
   PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
 )
 

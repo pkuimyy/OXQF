@@ -47,6 +47,10 @@ int main() {
   auto session = std::get<EditorSession>(std::move(console_opened));
   auto direct = std::get<EditorSession>(std::move(direct_opened));
   DebugConsole console{session};
+  if (oxq::editor::console_commands().size() != 11 ||
+      oxq::editor::console_commands().front().name != "status") {
+    return 14;
+  }
 
   const auto status = console.execute("status", "c-1");
   if (!status.ok || status.revision != 0 || !status.session_state.has_value() ||
