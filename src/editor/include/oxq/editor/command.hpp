@@ -53,9 +53,20 @@ struct SetMetadataCommand {
   friend bool operator==(const SetMetadataCommand&, const SetMetadataCommand&) = default;
 };
 
+using AtomicCommand = std::variant<InsertMoveCommand, DeleteSubtreeCommand,
+                                   ReplaceMoveCommand, ReorderVariationCommand,
+                                   SetAnnotationsCommand, SetMetadataCommand>;
+
+struct CompoundCommand {
+  std::vector<AtomicCommand> commands;
+
+  friend bool operator==(const CompoundCommand&, const CompoundCommand&) = default;
+};
+
 using Command = std::variant<InsertMoveCommand, DeleteSubtreeCommand,
                              ReplaceMoveCommand, ReorderVariationCommand,
-                             SetAnnotationsCommand, SetMetadataCommand>;
+                             SetAnnotationsCommand, SetMetadataCommand,
+                             CompoundCommand>;
 
 struct ChangeSet {
   std::uint64_t before_revision{0};

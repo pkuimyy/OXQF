@@ -48,6 +48,11 @@ target_link_libraries(oxq_editor_content_commands_test PRIVATE OXQF::editor)
 oxqf_set_project_warnings(oxq_editor_content_commands_test)
 oxqf_enable_sanitizers(oxq_editor_content_commands_test)
 add_test(NAME editor.content-commands COMMAND oxq_editor_content_commands_test)
+add_executable(oxq_editor_compound_command_test editor/compound_command_test.cpp)
+target_link_libraries(oxq_editor_compound_command_test PRIVATE OXQF::editor)
+oxqf_set_project_warnings(oxq_editor_compound_command_test)
+oxqf_enable_sanitizers(oxq_editor_compound_command_test)
+add_test(NAME editor.compound-command COMMAND oxq_editor_compound_command_test)
 set_tests_properties(
   editor.session
   editor.command
@@ -55,6 +60,7 @@ set_tests_properties(
   editor.replace-move
   editor.reorder-variation
   editor.content-commands
+  editor.compound-command
   PROPERTIES ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0"
 )
 

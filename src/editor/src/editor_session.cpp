@@ -77,6 +77,24 @@ namespace {
   return document.move_tree.validateInvariants();
 }
 
+void append_unique(std::vector<format::NodeId>& target,
+                   const std::vector<format::NodeId>& source) {
+  for (const auto node : source) {
+    if (std::ranges::find(target, node) == target.end()) {
+      target.push_back(node);
+    }
+  }
+}
+
+void merge_changes(ChangeSet& target, const ChangeSet& source) {
+  append_unique(target.inserted, source.inserted);
+  append_unique(target.removed, source.removed);
+  append_unique(target.updated, source.updated);
+  append_unique(target.reordered_parents, source.reordered_parents);
+  target.metadata_changed = target.metadata_changed || source.metadata_changed;
+  target.selection_changed = target.selection_changed || source.selection_changed;
+}
+
 [[nodiscard]] std::variant<format::Position, EditorError> position_at(
     const format::GameDocument& document, format::NodeId target) {
   std::unordered_map<format::NodeId, const format::MoveNode*> nodes;
@@ -205,6 +223,78 @@ CommandOutcome EditorSession::execute(
   if (expected_revision.has_value() && *expected_revision != state_.revision) {
     return revision_error(*expected_revision, state_.revision,
                           "session revision does not match the expected revision");
+  }
+
+  if (std::holds_alternative<CompoundCommand>(command)) {
+    const auto& compound = std::get<CompoundCommand>(command);
+    if (compound.commands.size() > options_.max_compound_commands) {
+      EditorError error;
+      error.code = EditorErrorCode::resource_limit;
+      error.message = "compound command exceeds the configured command limit";
+      return error;
+    }
+    if (compound.commands.empty()) {
+      ChangeSet changes;
+      changes.before_revision = state_.revision;
+      changes.after_revision = state_.revision;
+      return CommandResult{state_.revision, std::move(changes), std::nullopt};
+    }
+
+    EditorSession temporary{document_};
+    temporary.state_ = state_;
+    temporary.options_ = options_;
+    temporary.current_document_token_ = current_document_token_;
+    temporary.saved_document_token_ = saved_document_token_;
+    temporary.next_document_token_ = next_document_token_;
+
+    ChangeSet merged;
+    for (const auto& atomic : compound.commands) {
+      Command child = std::visit(
+          [](const auto& value) -> Command { return value; }, atomic);
+      auto outcome = temporary.execute(std::move(child), temporary.state_.revision);
+      if (std::holds_alternative<EditorError>(outcome)) {
+        return std::get<EditorError>(std::move(outcome));
+      }
+      merge_changes(merged, std::get<CommandResult>(outcome).changes);
+    }
+
+    if (temporary.document_ == document_) {
+      ChangeSet changes;
+      changes.before_revision = state_.revision;
+      changes.after_revision = state_.revision;
+      return CommandResult{state_.revision, std::move(changes), std::nullopt};
+    }
+
+    const auto before_revision = state_.revision;
+    const auto before_current = state_.current_node;
+    const auto after_current = temporary.state_.current_node;
+    const auto before_token = current_document_token_;
+    const auto after_token = next_document_token_++;
+
+    HistoryEntry history;
+    history.kind = HistoryKind::compound;
+    history.before_current = before_current;
+    history.after_current = after_current;
+    history.before_token = before_token;
+    history.after_token = after_token;
+    history.before_document = document_;
+    history.after_document = temporary.document_;
+    history.forward_changes = merged;
+
+    document_ = std::move(temporary.document_);
+    state_.current_node = after_current;
+    state_.revision = before_revision + 1;
+    current_document_token_ = after_token;
+    state_.dirty = current_document_token_ != saved_document_token_;
+    undo_history_.push_back(std::move(history));
+    redo_history_.clear();
+    state_.can_undo = true;
+    state_.can_redo = false;
+
+    merged.before_revision = before_revision;
+    merged.after_revision = state_.revision;
+    merged.selection_changed = before_current != after_current;
+    return CommandResult{state_.revision, std::move(merged), std::nullopt};
   }
 
   if (std::holds_alternative<SetMetadataCommand>(command)) {
@@ -772,10 +862,15 @@ CommandOutcome EditorSession::undo(
     if (mutation_succeeded) {
       target->annotations = *entry.before_annotations;
     }
-  } else {
+  } else if (entry.kind == HistoryKind::set_metadata) {
     mutation_succeeded = entry.before_metadata.has_value();
     if (mutation_succeeded) {
       working.metadata = *entry.before_metadata;
+    }
+  } else {
+    mutation_succeeded = entry.before_document.has_value();
+    if (mutation_succeeded) {
+      working = *entry.before_document;
     }
   }
   if (!mutation_succeeded ||
@@ -801,7 +896,12 @@ CommandOutcome EditorSession::undo(
   ChangeSet changes;
   changes.before_revision = before_revision;
   changes.after_revision = state_.revision;
-  if (entry.kind == HistoryKind::replace_move) {
+  if (entry.kind == HistoryKind::compound && entry.forward_changes.has_value()) {
+    changes = *entry.forward_changes;
+    std::swap(changes.inserted, changes.removed);
+    changes.before_revision = before_revision;
+    changes.after_revision = state_.revision;
+  } else if (entry.kind == HistoryKind::replace_move) {
     changes.updated = {entry.root};
   } else if (entry.kind == HistoryKind::reorder_variation) {
     changes.reordered_parents = {entry.parent};
@@ -856,10 +956,15 @@ CommandOutcome EditorSession::redo(
     if (mutation_succeeded) {
       target->annotations = *entry.after_annotations;
     }
-  } else {
+  } else if (entry.kind == HistoryKind::set_metadata) {
     mutation_succeeded = entry.after_metadata.has_value();
     if (mutation_succeeded) {
       working.metadata = *entry.after_metadata;
+    }
+  } else {
+    mutation_succeeded = entry.after_document.has_value();
+    if (mutation_succeeded) {
+      working = *entry.after_document;
     }
   }
   if (!mutation_succeeded ||
@@ -885,7 +990,11 @@ CommandOutcome EditorSession::redo(
   ChangeSet changes;
   changes.before_revision = before_revision;
   changes.after_revision = state_.revision;
-  if (entry.kind == HistoryKind::replace_move) {
+  if (entry.kind == HistoryKind::compound && entry.forward_changes.has_value()) {
+    changes = *entry.forward_changes;
+    changes.before_revision = before_revision;
+    changes.after_revision = state_.revision;
+  } else if (entry.kind == HistoryKind::replace_move) {
     changes.updated = {entry.root};
   } else if (entry.kind == HistoryKind::reorder_variation) {
     changes.reordered_parents = {entry.parent};

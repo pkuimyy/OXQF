@@ -18,6 +18,7 @@ enum class ValidationPolicy {
 
 struct SessionOptions {
   ValidationPolicy validation_policy{ValidationPolicy::state_consistent};
+  std::size_t max_compound_commands{1024};
 };
 
 struct SessionState {
@@ -78,6 +79,7 @@ class EditorSession {
     reorder_variation,
     set_annotations,
     set_metadata,
+    compound,
   };
 
   struct HistoryEntry {
@@ -97,6 +99,9 @@ class EditorSession {
     std::optional<std::vector<format::Annotation>> after_annotations;
     std::optional<format::GameMetadata> before_metadata;
     std::optional<format::GameMetadata> after_metadata;
+    std::optional<format::GameDocument> before_document;
+    std::optional<format::GameDocument> after_document;
+    std::optional<ChangeSet> forward_changes;
   };
 
   format::GameDocument document_;
