@@ -24,7 +24,15 @@ struct DeleteSubtreeCommand {
   friend bool operator==(const DeleteSubtreeCommand&, const DeleteSubtreeCommand&) = default;
 };
 
-using Command = std::variant<InsertMoveCommand, DeleteSubtreeCommand>;
+struct ReplaceMoveCommand {
+  format::NodeId node{0};
+  format::Move move;
+
+  friend bool operator==(const ReplaceMoveCommand&, const ReplaceMoveCommand&) = default;
+};
+
+using Command =
+    std::variant<InsertMoveCommand, DeleteSubtreeCommand, ReplaceMoveCommand>;
 
 struct ChangeSet {
   std::uint64_t before_revision{0};

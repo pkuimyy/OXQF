@@ -74,6 +74,7 @@ class EditorSession {
   enum class HistoryKind {
     insert,
     delete_subtree,
+    replace_move,
   };
 
   struct HistoryEntry {
@@ -86,6 +87,8 @@ class EditorSession {
     format::NodeId after_current{0};
     std::uint64_t before_token{0};
     std::uint64_t after_token{0};
+    std::optional<format::Move> before_move;
+    std::optional<format::Move> after_move;
   };
 
   format::GameDocument document_;

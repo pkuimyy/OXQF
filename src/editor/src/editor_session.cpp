@@ -188,6 +188,120 @@ CommandOutcome EditorSession::execute(
                           "session revision does not match the expected revision");
   }
 
+  if (std::holds_alternative<ReplaceMoveCommand>(command)) {
+    const auto& replacement = std::get<ReplaceMoveCommand>(command);
+    if (replacement.node == 0) {
+      EditorError error;
+      error.code = EditorErrorCode::invalid_argument;
+      error.message = "the root node has no move to replace";
+      error.node_id = replacement.node;
+      return error;
+    }
+    const auto* target = document_.move_tree.findNode(replacement.node);
+    if (target == nullptr) {
+      return node_error(replacement.node);
+    }
+    if (replacement.move.from_square >= 90 || replacement.move.to_square >= 90 ||
+        replacement.move.from_square == replacement.move.to_square) {
+      EditorError error;
+      error.code = EditorErrorCode::invalid_argument;
+      error.message = "move squares must be distinct values in the range 0..89";
+      error.node_id = replacement.node;
+      return error;
+    }
+    if (target->move == std::optional{replacement.move}) {
+      ChangeSet changes;
+      changes.before_revision = state_.revision;
+      changes.after_revision = state_.revision;
+      return CommandResult{state_.revision, std::move(changes), std::nullopt};
+    }
+
+    const auto parent_id = *target->parent;
+    const auto* parent = document_.move_tree.findNode(parent_id);
+    if (parent == nullptr) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "replaced move has no valid parent";
+      error.node_id = replacement.node;
+      return error;
+    }
+    const auto sibling = std::ranges::find(parent->children, replacement.node);
+    if (sibling == parent->children.end()) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "replaced move is absent from its parent's children";
+      error.node_id = replacement.node;
+      return error;
+    }
+    for (const auto sibling_id : parent->children) {
+      if (sibling_id == replacement.node) {
+        continue;
+      }
+      const auto* sibling_node = document_.move_tree.findNode(sibling_id);
+      if (sibling_node != nullptr &&
+          sibling_node->move == std::optional{replacement.move}) {
+        EditorError error;
+        error.code = EditorErrorCode::duplicate_move;
+        error.message = "a sibling already has the replacement move";
+        error.node_id = sibling_id;
+        return error;
+      }
+    }
+
+    const auto original_move = *target->move;
+    const auto storage_index = *document_.move_tree.storageIndex(replacement.node);
+    const auto sibling_index =
+        static_cast<std::size_t>(std::distance(parent->children.begin(), sibling));
+    format::GameDocument working = document_;
+    auto* working_target = working.move_tree.findNode(replacement.node);
+    if (working_target == nullptr) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "replacement target disappeared from the working document";
+      error.node_id = replacement.node;
+      return error;
+    }
+    working_target->move = replacement.move;
+    auto issues = validate_document(working, options_);
+    if (format::has_errors(issues)) {
+      EditorError error;
+      error.code = EditorErrorCode::validation_failed;
+      error.message = "replacement move invalidates the document or its descendants";
+      error.validation_issues = std::move(issues);
+      error.node_id = replacement.node;
+      return error;
+    }
+
+    const auto before_revision = state_.revision;
+    const auto before_token = current_document_token_;
+    const auto after_token = next_document_token_++;
+    const auto original_node = *target;
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    state_.dirty = current_document_token_ != saved_document_token_;
+    undo_history_.push_back({HistoryKind::replace_move,
+                             {{storage_index, original_node}},
+                             replacement.node,
+                             parent_id,
+                             sibling_index,
+                             state_.current_node,
+                             state_.current_node,
+                             before_token,
+                             after_token,
+                             original_move,
+                             replacement.move});
+    redo_history_.clear();
+    state_.can_undo = true;
+    state_.can_redo = false;
+
+    ChangeSet changes;
+    changes.before_revision = before_revision;
+    changes.after_revision = state_.revision;
+    changes.updated = {replacement.node};
+    return CommandResult{state_.revision, std::move(changes), std::nullopt};
+  }
+
   if (std::holds_alternative<DeleteSubtreeCommand>(command)) {
     const auto& deletion = std::get<DeleteSubtreeCommand>(command);
     if (deletion.node == 0) {
@@ -278,7 +392,8 @@ CommandOutcome EditorSession::execute(
     state_.dirty = current_document_token_ != saved_document_token_;
     undo_history_.push_back({HistoryKind::delete_subtree, std::move(stored_nodes),
                              deletion.node, parent_id, sibling_index, before_current,
-                             after_current, before_token, after_token});
+                             after_current, before_token, after_token, std::nullopt,
+                             std::nullopt});
     redo_history_.clear();
     state_.can_undo = true;
     state_.can_redo = false;
@@ -381,7 +496,9 @@ CommandOutcome EditorSession::execute(
                            before_current,
                            created,
                            before_token,
-                           after_token});
+                           after_token,
+                           std::nullopt,
+                           std::nullopt});
   redo_history_.clear();
   state_.can_undo = true;
   state_.can_redo = false;
@@ -410,10 +527,18 @@ CommandOutcome EditorSession::undo(
 
   const auto entry = undo_history_.back();
   format::GameDocument working = document_;
-  const bool mutation_succeeded =
-      entry.kind == HistoryKind::insert
-          ? working.move_tree.removeNode(entry.root)
-          : restore_subtree(working, entry);
+  bool mutation_succeeded = false;
+  if (entry.kind == HistoryKind::insert) {
+    mutation_succeeded = working.move_tree.removeNode(entry.root);
+  } else if (entry.kind == HistoryKind::delete_subtree) {
+    mutation_succeeded = restore_subtree(working, entry);
+  } else {
+    auto* target = working.move_tree.findNode(entry.root);
+    mutation_succeeded = target != nullptr && entry.before_move.has_value();
+    if (mutation_succeeded) {
+      target->move = entry.before_move;
+    }
+  }
   if (!mutation_succeeded ||
       format::has_errors(validate_document(working, options_))) {
     EditorError error;
@@ -437,11 +562,15 @@ CommandOutcome EditorSession::undo(
   ChangeSet changes;
   changes.before_revision = before_revision;
   changes.after_revision = state_.revision;
-  for (const auto& stored : entry.nodes) {
-    (entry.kind == HistoryKind::insert ? changes.removed : changes.inserted)
-        .push_back(stored.node.id);
+  if (entry.kind == HistoryKind::replace_move) {
+    changes.updated = {entry.root};
+  } else {
+    for (const auto& stored : entry.nodes) {
+      (entry.kind == HistoryKind::insert ? changes.removed : changes.inserted)
+          .push_back(stored.node.id);
+    }
+    changes.reordered_parents = {entry.parent};
   }
-  changes.reordered_parents = {entry.parent};
   changes.selection_changed = entry.before_current != entry.after_current;
   return CommandResult{state_.revision, std::move(changes), std::nullopt};
 }
@@ -461,10 +590,18 @@ CommandOutcome EditorSession::redo(
 
   const auto entry = redo_history_.back();
   format::GameDocument working = document_;
-  const bool mutation_succeeded =
-      entry.kind == HistoryKind::insert
-          ? restore_subtree(working, entry)
-          : working.move_tree.removeNode(entry.root);
+  bool mutation_succeeded = false;
+  if (entry.kind == HistoryKind::insert) {
+    mutation_succeeded = restore_subtree(working, entry);
+  } else if (entry.kind == HistoryKind::delete_subtree) {
+    mutation_succeeded = working.move_tree.removeNode(entry.root);
+  } else {
+    auto* target = working.move_tree.findNode(entry.root);
+    mutation_succeeded = target != nullptr && entry.after_move.has_value();
+    if (mutation_succeeded) {
+      target->move = entry.after_move;
+    }
+  }
   if (!mutation_succeeded ||
       format::has_errors(validate_document(working, options_))) {
     EditorError error;
@@ -488,11 +625,15 @@ CommandOutcome EditorSession::redo(
   ChangeSet changes;
   changes.before_revision = before_revision;
   changes.after_revision = state_.revision;
-  for (const auto& stored : entry.nodes) {
-    (entry.kind == HistoryKind::insert ? changes.inserted : changes.removed)
-        .push_back(stored.node.id);
+  if (entry.kind == HistoryKind::replace_move) {
+    changes.updated = {entry.root};
+  } else {
+    for (const auto& stored : entry.nodes) {
+      (entry.kind == HistoryKind::insert ? changes.inserted : changes.removed)
+          .push_back(stored.node.id);
+    }
+    changes.reordered_parents = {entry.parent};
   }
-  changes.reordered_parents = {entry.parent};
   changes.selection_changed = entry.before_current != entry.after_current;
   const auto created = entry.kind == HistoryKind::insert
                            ? std::optional<format::NodeId>{entry.root}
