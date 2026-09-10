@@ -76,6 +76,8 @@ class EditorSession {
     delete_subtree,
     replace_move,
     reorder_variation,
+    set_annotations,
+    set_metadata,
   };
 
   struct HistoryEntry {
@@ -91,6 +93,10 @@ class EditorSession {
     std::optional<format::Move> before_move;
     std::optional<format::Move> after_move;
     std::optional<std::size_t> reordered_index;
+    std::optional<std::vector<format::Annotation>> before_annotations;
+    std::optional<std::vector<format::Annotation>> after_annotations;
+    std::optional<format::GameMetadata> before_metadata;
+    std::optional<format::GameMetadata> after_metadata;
   };
 
   format::GameDocument document_;

@@ -39,8 +39,23 @@ struct ReorderVariationCommand {
                          const ReorderVariationCommand&) = default;
 };
 
+struct SetAnnotationsCommand {
+  format::NodeId node{0};
+  std::vector<format::Annotation> annotations;
+
+  friend bool operator==(const SetAnnotationsCommand&,
+                         const SetAnnotationsCommand&) = default;
+};
+
+struct SetMetadataCommand {
+  format::GameMetadata metadata;
+
+  friend bool operator==(const SetMetadataCommand&, const SetMetadataCommand&) = default;
+};
+
 using Command = std::variant<InsertMoveCommand, DeleteSubtreeCommand,
-                             ReplaceMoveCommand, ReorderVariationCommand>;
+                             ReplaceMoveCommand, ReorderVariationCommand,
+                             SetAnnotationsCommand, SetMetadataCommand>;
 
 struct ChangeSet {
   std::uint64_t before_revision{0};

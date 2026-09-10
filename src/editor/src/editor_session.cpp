@@ -207,6 +207,116 @@ CommandOutcome EditorSession::execute(
                           "session revision does not match the expected revision");
   }
 
+  if (std::holds_alternative<SetMetadataCommand>(command)) {
+    const auto& update = std::get<SetMetadataCommand>(command);
+    if (document_.metadata == update.metadata) {
+      ChangeSet changes;
+      changes.before_revision = state_.revision;
+      changes.after_revision = state_.revision;
+      return CommandResult{state_.revision, std::move(changes), std::nullopt};
+    }
+
+    format::GameDocument working = document_;
+    const auto previous = working.metadata;
+    working.metadata = update.metadata;
+    auto issues = validate_document(working, options_);
+    if (format::has_errors(issues)) {
+      EditorError error;
+      error.code = EditorErrorCode::validation_failed;
+      error.message = "updated metadata failed document validation";
+      error.validation_issues = std::move(issues);
+      return error;
+    }
+
+    const auto before_revision = state_.revision;
+    const auto before_token = current_document_token_;
+    const auto after_token = next_document_token_++;
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    state_.dirty = current_document_token_ != saved_document_token_;
+    HistoryEntry history;
+    history.kind = HistoryKind::set_metadata;
+    history.before_current = state_.current_node;
+    history.after_current = state_.current_node;
+    history.before_token = before_token;
+    history.after_token = after_token;
+    history.before_metadata = previous;
+    history.after_metadata = update.metadata;
+    undo_history_.push_back(std::move(history));
+    redo_history_.clear();
+    state_.can_undo = true;
+    state_.can_redo = false;
+
+    ChangeSet changes;
+    changes.before_revision = before_revision;
+    changes.after_revision = state_.revision;
+    changes.metadata_changed = true;
+    return CommandResult{state_.revision, std::move(changes), std::nullopt};
+  }
+
+  if (std::holds_alternative<SetAnnotationsCommand>(command)) {
+    const auto& update = std::get<SetAnnotationsCommand>(command);
+    const auto* target = document_.move_tree.findNode(update.node);
+    if (target == nullptr) {
+      return node_error(update.node);
+    }
+    if (target->annotations == update.annotations) {
+      ChangeSet changes;
+      changes.before_revision = state_.revision;
+      changes.after_revision = state_.revision;
+      return CommandResult{state_.revision, std::move(changes), std::nullopt};
+    }
+
+    const auto previous = target->annotations;
+    format::GameDocument working = document_;
+    auto* working_target = working.move_tree.findNode(update.node);
+    if (working_target == nullptr) {
+      EditorError error;
+      error.code = EditorErrorCode::internal_invariant;
+      error.message = "annotation target disappeared from the working document";
+      error.node_id = update.node;
+      return error;
+    }
+    working_target->annotations = update.annotations;
+    auto issues = validate_document(working, options_);
+    if (format::has_errors(issues)) {
+      EditorError error;
+      error.code = EditorErrorCode::validation_failed;
+      error.message = "updated annotations failed document validation";
+      error.validation_issues = std::move(issues);
+      error.node_id = update.node;
+      return error;
+    }
+
+    const auto before_revision = state_.revision;
+    const auto before_token = current_document_token_;
+    const auto after_token = next_document_token_++;
+    document_ = std::move(working);
+    ++state_.revision;
+    current_document_token_ = after_token;
+    state_.dirty = current_document_token_ != saved_document_token_;
+    HistoryEntry history;
+    history.kind = HistoryKind::set_annotations;
+    history.root = update.node;
+    history.before_current = state_.current_node;
+    history.after_current = state_.current_node;
+    history.before_token = before_token;
+    history.after_token = after_token;
+    history.before_annotations = previous;
+    history.after_annotations = update.annotations;
+    undo_history_.push_back(std::move(history));
+    redo_history_.clear();
+    state_.can_undo = true;
+    state_.can_redo = false;
+
+    ChangeSet changes;
+    changes.before_revision = before_revision;
+    changes.after_revision = state_.revision;
+    changes.updated = {update.node};
+    return CommandResult{state_.revision, std::move(changes), std::nullopt};
+  }
+
   if (std::holds_alternative<ReorderVariationCommand>(command)) {
     const auto& reorder = std::get<ReorderVariationCommand>(command);
     if (reorder.node == 0) {
@@ -271,18 +381,18 @@ CommandOutcome EditorSession::execute(
     ++state_.revision;
     current_document_token_ = after_token;
     state_.dirty = current_document_token_ != saved_document_token_;
-    undo_history_.push_back({HistoryKind::reorder_variation,
-                             {{storage_index, original_node}},
-                             reorder.node,
-                             parent_id,
-                             current_index,
-                             state_.current_node,
-                             state_.current_node,
-                             before_token,
-                             after_token,
-                             std::nullopt,
-                             std::nullopt,
-                             reorder.target_index});
+    HistoryEntry history;
+    history.kind = HistoryKind::reorder_variation;
+    history.nodes = {{storage_index, original_node}};
+    history.root = reorder.node;
+    history.parent = parent_id;
+    history.sibling_index = current_index;
+    history.before_current = state_.current_node;
+    history.after_current = state_.current_node;
+    history.before_token = before_token;
+    history.after_token = after_token;
+    history.reordered_index = reorder.target_index;
+    undo_history_.push_back(std::move(history));
     redo_history_.clear();
     state_.can_undo = true;
     state_.can_redo = false;
@@ -386,18 +496,19 @@ CommandOutcome EditorSession::execute(
     ++state_.revision;
     current_document_token_ = after_token;
     state_.dirty = current_document_token_ != saved_document_token_;
-    undo_history_.push_back({HistoryKind::replace_move,
-                             {{storage_index, original_node}},
-                             replacement.node,
-                             parent_id,
-                             sibling_index,
-                             state_.current_node,
-                             state_.current_node,
-                             before_token,
-                             after_token,
-                             original_move,
-                             replacement.move,
-                             std::nullopt});
+    HistoryEntry history;
+    history.kind = HistoryKind::replace_move;
+    history.nodes = {{storage_index, original_node}};
+    history.root = replacement.node;
+    history.parent = parent_id;
+    history.sibling_index = sibling_index;
+    history.before_current = state_.current_node;
+    history.after_current = state_.current_node;
+    history.before_token = before_token;
+    history.after_token = after_token;
+    history.before_move = original_move;
+    history.after_move = replacement.move;
+    undo_history_.push_back(std::move(history));
     redo_history_.clear();
     state_.can_undo = true;
     state_.can_redo = false;
@@ -497,10 +608,17 @@ CommandOutcome EditorSession::execute(
     ++state_.revision;
     current_document_token_ = after_token;
     state_.dirty = current_document_token_ != saved_document_token_;
-    undo_history_.push_back({HistoryKind::delete_subtree, std::move(stored_nodes),
-                             deletion.node, parent_id, sibling_index, before_current,
-                             after_current, before_token, after_token, std::nullopt,
-                             std::nullopt, std::nullopt});
+    HistoryEntry history;
+    history.kind = HistoryKind::delete_subtree;
+    history.nodes = std::move(stored_nodes);
+    history.root = deletion.node;
+    history.parent = parent_id;
+    history.sibling_index = sibling_index;
+    history.before_current = before_current;
+    history.after_current = after_current;
+    history.before_token = before_token;
+    history.after_token = after_token;
+    undo_history_.push_back(std::move(history));
     redo_history_.clear();
     state_.can_undo = true;
     state_.can_redo = false;
@@ -595,18 +713,17 @@ CommandOutcome EditorSession::execute(
   ++state_.revision;
   current_document_token_ = after_token;
   state_.dirty = current_document_token_ != saved_document_token_;
-  undo_history_.push_back({HistoryKind::insert,
-                           {{inserted_index, inserted_node}},
-                           created,
-                           insert.parent,
-                           insertion_index,
-                           before_current,
-                           created,
-                           before_token,
-                           after_token,
-                           std::nullopt,
-                           std::nullopt,
-                           std::nullopt});
+  HistoryEntry history;
+  history.kind = HistoryKind::insert;
+  history.nodes = {{inserted_index, inserted_node}};
+  history.root = created;
+  history.parent = insert.parent;
+  history.sibling_index = insertion_index;
+  history.before_current = before_current;
+  history.after_current = created;
+  history.before_token = before_token;
+  history.after_token = after_token;
+  undo_history_.push_back(std::move(history));
   redo_history_.clear();
   state_.can_undo = true;
   state_.can_redo = false;
@@ -646,9 +763,20 @@ CommandOutcome EditorSession::undo(
     if (mutation_succeeded) {
       target->move = entry.before_move;
     }
-  } else {
+  } else if (entry.kind == HistoryKind::reorder_variation) {
     mutation_succeeded = reorder_child(working, entry.parent, entry.root,
                                        entry.sibling_index);
+  } else if (entry.kind == HistoryKind::set_annotations) {
+    auto* target = working.move_tree.findNode(entry.root);
+    mutation_succeeded = target != nullptr && entry.before_annotations.has_value();
+    if (mutation_succeeded) {
+      target->annotations = *entry.before_annotations;
+    }
+  } else {
+    mutation_succeeded = entry.before_metadata.has_value();
+    if (mutation_succeeded) {
+      working.metadata = *entry.before_metadata;
+    }
   }
   if (!mutation_succeeded ||
       format::has_errors(validate_document(working, options_))) {
@@ -677,6 +805,10 @@ CommandOutcome EditorSession::undo(
     changes.updated = {entry.root};
   } else if (entry.kind == HistoryKind::reorder_variation) {
     changes.reordered_parents = {entry.parent};
+  } else if (entry.kind == HistoryKind::set_annotations) {
+    changes.updated = {entry.root};
+  } else if (entry.kind == HistoryKind::set_metadata) {
+    changes.metadata_changed = true;
   } else {
     for (const auto& stored : entry.nodes) {
       (entry.kind == HistoryKind::insert ? changes.removed : changes.inserted)
@@ -714,10 +846,21 @@ CommandOutcome EditorSession::redo(
     if (mutation_succeeded) {
       target->move = entry.after_move;
     }
-  } else {
+  } else if (entry.kind == HistoryKind::reorder_variation) {
     mutation_succeeded = entry.reordered_index.has_value() &&
                          reorder_child(working, entry.parent, entry.root,
                                        *entry.reordered_index);
+  } else if (entry.kind == HistoryKind::set_annotations) {
+    auto* target = working.move_tree.findNode(entry.root);
+    mutation_succeeded = target != nullptr && entry.after_annotations.has_value();
+    if (mutation_succeeded) {
+      target->annotations = *entry.after_annotations;
+    }
+  } else {
+    mutation_succeeded = entry.after_metadata.has_value();
+    if (mutation_succeeded) {
+      working.metadata = *entry.after_metadata;
+    }
   }
   if (!mutation_succeeded ||
       format::has_errors(validate_document(working, options_))) {
@@ -746,6 +889,10 @@ CommandOutcome EditorSession::redo(
     changes.updated = {entry.root};
   } else if (entry.kind == HistoryKind::reorder_variation) {
     changes.reordered_parents = {entry.parent};
+  } else if (entry.kind == HistoryKind::set_annotations) {
+    changes.updated = {entry.root};
+  } else if (entry.kind == HistoryKind::set_metadata) {
+    changes.metadata_changed = true;
   } else {
     for (const auto& stored : entry.nodes) {
       (entry.kind == HistoryKind::insert ? changes.inserted : changes.removed)
