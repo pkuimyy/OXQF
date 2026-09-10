@@ -154,9 +154,16 @@ M4 出口：用户仅用浏览器即可完成产品闭环，重新打开保存�
 
 ### WP-504 发布工程
 
-完成 native archive、npm/WASM 包、Web production artifact、SBOM、checksums、迁移指南和 release notes。
+完成 native archive、npm/WASM 包、Web production artifact、SBOM、checksums、迁移指南和 release notes。发布包同时必须包含：
 
-M5 出口：满足 [质量、性能与发布](07-quality-delivery.md) 的发布完成定义。
+- `oxq-format` 面向使用者的 API 指南；
+- `oxq-editor` 面向使用者的 API 指南；
+- Reader→Editor→Writer 端到端集成指南；
+- 从公共头文件文档注释生成的 API Reference。
+
+文档必须覆盖安装与链接、类型与方法契约、错误、所有权和生命周期、资源限制、线程安全、异常策略及兼容性。文档中的最小示例作为安装后 clean-consumer 测试在 CI 执行。
+
+M5 出口：满足 [质量、性能与发布](07-quality-delivery.md) 的发布完成定义，且第三方开发者仅依赖发布包内文档即可完成 format/editor 集成。
 
 ## 明确延后项
 

@@ -125,6 +125,9 @@ native 和 Web 均可记录耗时、节点数、错误 code、版本和内存统
 
 - 所有门禁在干净 checkout 可复现；
 - release artifacts 能由独立 consumer 安装使用；
+- release artifacts 包含 `oxq-format` API 指南、`oxq-editor` API 指南、端到端集成指南和可检索的 API Reference；
+- API 文档明确安装与链接、公共类型与操作、错误、所有权和生命周期、资源限制、线程安全、异常及兼容契约；
+- Reader→Editor→Writer 文档示例使用安装后的公共头文件和 CMake target，并通过 CI clean-consumer 编译与运行测试；
 - 新旧兼容矩阵结果归档；
 - 已知限制（尤其完整棋规校验、DAG、浏览器范围）出现在 release note；
 - 文档中的命令、包名和 API 与实际产物一致。

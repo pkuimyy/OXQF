@@ -38,7 +38,9 @@ oxq-web
 
 每个工作包只有同时满足以下条件才算完成：
 
-- 公共 API、错误语义和所有权在对应文档中有记录；
+- 公共 API、错误语义、所有权、生命周期、资源限制、线程安全和异常契约在面向使用者的 API 文档中有记录；
+- `oxq-format` 和 `oxq-editor` 分别有完整 API 指南，并有一份覆盖 Reader→Editor→Writer 的端到端集成指南；
+- 公共头文件包含可生成 API Reference 的文档注释，文档示例由 CI clean-consumer 编译并运行；
 - Linux GCC、Linux Clang 和 Windows MSVC 构建通过；
 - 新行为有单元测试，跨模块路径有集成测试；
 - 不降低现有 OXQ v1 测试向量、CBL 金标和 Reader fuzz 门禁；

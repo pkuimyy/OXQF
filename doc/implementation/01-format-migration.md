@@ -78,6 +78,19 @@ std::vector<ValidationIssue> validate(const GameDocument&, const ValidationLimit
 | convert | `oxq/format/*` | `OXQF::format` | CBL 金标不变 |
 | CLI | 新入口 | 间接链接 | 输出协议和退出码不变 |
 
+## API 文档交付
+
+`oxq-format` 稳定公共入口时必须同步交付面向第三方 C++ consumer 的 API 指南和公共符号 Reference。API 指南至少包含：
+
+- 安装、`find_package(OXQF CONFIG REQUIRED)`、`OXQF::format` 链接和必需头文件；
+- `GameDocument`、Reader、Writer 及各类 validation 入口的职责边界；
+- 输入字节、返回值和文档对象的所有权与生命周期；
+- diagnostics、error code、resource limits、异常与线程安全契约；
+- 规范化 Writer、未知扩展和 `oxq-core` 兼容入口的行为与迁移说明；
+- 可独立编译运行的 Reader→Writer 最小示例。
+
+验收：文档随 native 发布包安装，示例仅使用安装树的公共头文件与 CMake target，并在 CI clean-consumer 中编译和运行。
+
 ## 回滚与风险控制
 
 - 每个阶段先比较全部 `test/vectors/oxq-v1` Writer 输出；任何字节变化都阻止合并；
@@ -91,5 +104,6 @@ std::vector<ValidationIssue> validate(const GameDocument&, const ValidationLimit
 - 仓库主文档只把 `oxq-format` 称为格式实现；
 - 新 API、旧兼容 API、安装包 consumer 测试均通过；
 - Linux/Windows release 包包含新头和兼容头；
+- 发布包包含与实际公共头文件一致的 `oxq-format` API 指南和 API Reference；
 - CHANGELOG 写明兼容周期及删除版本；
 - 格式向量、CBL 语义基线和跨平台 Writer 指纹零变化。

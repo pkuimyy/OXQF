@@ -152,6 +152,20 @@ preorder 返回节点和父子边，携带相对深度、原 sibling index、主
 
 错误携带稳定 code、用户可读 message、可选 path/node/revision；UI 不解析英文 message 做分支判断。
 
+## API 文档交付
+
+`oxq-editor` 对外发布时必须提供与公共头文件同步的 API 指南和符号 Reference。文档至少包含：
+
+- `open_document`、`EditorSession`、快照、导出和会话对象的所有权与生命周期；
+- 所有公共 Command 的输入、前置条件、`CommandResult`/`ChangeSet` 和失败原子性；
+- revision 乐观并发、dirty/checkpoint、checkout、Undo/Redo 与 `clear_history` 的准确语义；
+- `SessionOptions` 全部默认值、历史/缓存/投影限制和超限行为；
+- position query、VariationGraph 截断、Console 会话及结果 schema；
+- 稳定错误码、异常策略、线程安全和重入契约；
+- `read_oxq → open_document → execute/undo → export_document → write_oxq → mark_saved` 可编译的端到端示例。
+
+验收：第三方开发者仅使用发布包文档即可完成编辑与保存闭环；公共头文件包含可生成 Reference 的文档注释，端到端示例在 CI clean-consumer 中编译和运行。
+
 ## 最小测试清单
 
 - 空文档打开与根节点选择；
